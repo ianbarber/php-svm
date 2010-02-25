@@ -1,5 +1,5 @@
 --TEST--
-Load training data from a file. 
+Test retrieving the SVM training parameters. 
 --SKIPIF--
 <?php
 if (!extension_loaded('svm')) die('skip');

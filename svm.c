@@ -188,26 +188,25 @@ Get training parameters, in an array.
 */
 PHP_METHOD(svm, getOptions) 
 {
-	zval *params;
+	php_svm_object *intern;
+	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
 	
-	array_init(params); 
+	array_init(return_value); 
 	
-	add_assoc_long(params, "svm_type", intern->param.svm_type);
-	add_assoc_long(params, "kernel_type", intern->param.kernel_type);
-	add_assoc_long(params, "degree", intern->param.degree);
-	add_assoc_long(params, "shrinking", intern->param.shrinking);
-	add_assoc_long(params, "probability", intern->param.probability);
-	add_assoc_long(params, "nr_weight", intern->param.nr_weight);
+	add_assoc_long(return_value, "svm_type", intern->param.svm_type);
+	add_assoc_long(return_value, "kernel_type", intern->param.kernel_type);
+	add_assoc_long(return_value, "degree", intern->param.degree);
+	add_assoc_long(return_value, "shrinking", intern->param.shrinking);
+	add_assoc_long(return_value, "probability", intern->param.probability);
+	add_assoc_long(return_value, "nr_weight", intern->param.nr_weight);
 	
-	add_assoc_double(params, "gamma", intern->param.gamma);
-	add_assoc_double(params, "coef0", intern->param.coef0);
-	add_assoc_double(params, "nu", intern->param.nu);
-	add_assoc_double(params, "cache_size", intern->param.cache_size);
-	add_assoc_double(params, "C", intern->param.C);
-	add_assoc_double(params, "eps", intern->param.eps);
-	add_assoc_double(params, "p", intern->param.p);
-
-	RETURN_ARRAY(params);
+	add_assoc_double(return_value, "gamma", intern->param.gamma);
+	add_assoc_double(return_value, "coef0", intern->param.coef0);
+	add_assoc_double(return_value, "nu", intern->param.nu);
+	add_assoc_double(return_value, "cache_size", intern->param.cache_size);
+	add_assoc_double(return_value, "C", intern->param.C);
+	add_assoc_double(return_value, "eps", intern->param.eps);
+	add_assoc_double(return_value, "p", intern->param.p);
 }
 /* }}} */
 
