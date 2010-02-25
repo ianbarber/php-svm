@@ -173,6 +173,7 @@ PHP_METHOD(svm, __construct)
 	php_svm_set_long_attribute(intern, phpsvm_shrinking, 1);
 	php_svm_set_long_attribute(intern, phpsvm_probability, 0);
 	php_svm_set_long_attribute(intern, phpsvm_nr_weight, 0);
+	/* TODO: Support these param types */
 	/*php_svm_set_long_attribute(intern, phpsvm_weight_label, NULL);
 	php_svm_set_double_attribute(intern, phpsvm_weight, NULL); */
 	
@@ -182,21 +183,35 @@ PHP_METHOD(svm, __construct)
 }
 /* }}} */
 
-/* {{{ array SVM::getTrainingParams([]);
+/* {{{ array SVM::getTrainingParams();
 Get training parameters, in an array. 
 */
 PHP_METHOD(svm, getOptions) 
 {
-	/* 
-	TODO: Loop over enum of settings 
-	 If param is set, retrieve from there
-	 If model is set, retrieve from
-	 ELSE through exception
-	*/
+	zval *params;
+	
+	array_init(params); 
+	
+	add_assoc_long(params, "svm_type", intern->param.svm_type);
+	add_assoc_long(params, "kernel_type", intern->param.kernel_type);
+	add_assoc_long(params, "degree", intern->param.degree);
+	add_assoc_long(params, "shrinking", intern->param.shrinking);
+	add_assoc_long(params, "probability", intern->param.probability);
+	add_assoc_long(params, "nr_weight", intern->param.nr_weight);
+	
+	add_assoc_double(params, "gamma", intern->param.gamma);
+	add_assoc_double(params, "coef0", intern->param.coef0);
+	add_assoc_double(params, "nu", intern->param.nu);
+	add_assoc_double(params, "cache_size", intern->param.cache_size);
+	add_assoc_double(params, "C", intern->param.C);
+	add_assoc_double(params, "eps", intern->param.eps);
+	add_assoc_double(params, "p", intern->param.p);
+
+	RETURN_ARRAY(params);
 }
 /* }}} */
 
-/* {{{ int SVM::setOptopms([array params]);
+/* {{{ int SVM::setOptopms(array params);
 Takes an array of parameters and sets the training options to match them. 
 Only used by the training functions, will not modify an existing model. 
 */
