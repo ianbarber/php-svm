@@ -42,7 +42,7 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
 // TODO: Add appropriate format doccomments
 
 // TODO: Catch the printed data and store for logging
-void print_null(const char *s) {}
+static void print_null(const char *s) {}
 
 /* {{{ SVM SVM::__construct();
 The constructor
@@ -50,7 +50,12 @@ The constructor
 PHP_METHOD(svm, __construct)
 {
 	php_svm_object *intern;
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+		return;
+	}
+	
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	// Setup the default parameters to match those in libsvm's svm_train
 	intern->param.svm_type = NU_SVC; // C_SVC;
@@ -70,10 +75,6 @@ PHP_METHOD(svm, __construct)
 	intern->param.weight = NULL;
 	intern->cross_validation = 0;
 	
-	// Redirect the lib svm output
-	extern void (*svm_print_string) (const char *);
-	svm_print_string = &print_null;
-
 	return;
 }
 
@@ -87,13 +88,11 @@ PHP_METHOD(svm, save)
 	int filename_len;
 	int result;
 	
-	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                             ZEND_NUM_ARGS() TSRMLS_CC,
-	                             "s", &filename, &filename_len) == FAILURE) {
-		SVM_THROW("Save requires a filename as a string", 103);
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+		return;
 	}
 	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	result = svm_save_model(filename, intern->model);
 	
@@ -114,15 +113,12 @@ PHP_METHOD(svm, load)
 	char *filename;
 	int filename_len;
 	int result;
-	
-	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                             ZEND_NUM_ARGS() TSRMLS_CC,
-	                             "s", &filename, &filename_len) == FAILURE) {
-		SVM_THROW("Load requires a filename as a string", 103);
-		
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+		return;
 	}
-	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
 	
 	// TODO: Probability support
@@ -156,12 +152,12 @@ PHP_METHOD(svm, predict)
 
 	// we want an array of data to be passed in
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
-	    RETURN_NULL();
+	    return;
 	}
 
 	arr_hash = Z_ARRVAL_P(arr);
 	array_count = zend_hash_num_elements(arr_hash);
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -250,7 +246,7 @@ PHP_METHOD(svm, train)
 		return;
 	}
 	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	int elements, max_index, inst_max_index, i, j;
 	char *endptr;
@@ -281,9 +277,9 @@ PHP_METHOD(svm, train)
 	}
 	php_stream_rewind(stream);
 	
-	intern->prob.y = (double *)malloc((intern->prob.l)*sizeof(double));
-	intern->prob.x = (struct svm_node *)malloc((intern->prob.l)*sizeof(struct svm_node));
-	intern->x_space = (struct svm_node *)malloc((elements)*sizeof(struct svm_node));
+	intern->prob.y = emalloc((intern->prob.l) * sizeof(double));
+	intern->prob.x = (struct svm_node *)emalloc((intern->prob.l)*sizeof(struct svm_node));
+	intern->x_space = (struct svm_node *)emalloc((elements)*sizeof(struct svm_node));
 	max_index = 0;
 	j=0;
 	
@@ -360,9 +356,9 @@ PHP_METHOD(svm, train)
 		intern->model = svm_train(&(intern->prob), &(intern->param));
 	}
 
-	free(intern->prob.y);
-	free(intern->prob.x);
-    free(intern->x_space);
+	efree(intern->prob.y);
+	efree(intern->prob.x);
+    efree(intern->x_space);
 	if(our_stream == 1) {
 		php_stream_close(stream);
 	}
@@ -488,6 +484,10 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("CONST_NAME", 1);
 
 #undef SVM_REGISTER_CONST_LONG
+
+	/* Redirect the lib svm output */
+	extern void (*svm_print_string) (const char *);
+	svm_print_string = &print_null;
 
 	return SUCCESS;
 }
