@@ -33,6 +33,7 @@ return;
 
 ZEND_DECLARE_MODULE_GLOBALS(svm);
 
+
 /* 
  TODO: Get options
  TODO: Set options
@@ -53,6 +54,7 @@ void print_null(const char *s) {}
 
 /* TODO: Make some of these names a bit more understandable? */
 typedef enum SvmLongAttribute {
+	SvmLongAttributeMin = 100,
 	phpsvm_svm_type,
 	phpsvm_kernel_type,
 	phpsvm_degree,
@@ -64,6 +66,7 @@ typedef enum SvmLongAttribute {
 } SvmLongAttribute;
 
 typedef enum SvmDoubleAttribute {
+	SvmDoubleAttributeMin = 200,
 	phpsvm_gamma,
 	phpsvm_nu,
 	phpsvm_eps,
@@ -157,7 +160,12 @@ The constructor
 PHP_METHOD(svm, __construct)
 {
 	php_svm_object *intern;
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+		return;
+	}
+	
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	/* Setup the default parameters to match those in libsvm's svm_train */
 	php_svm_set_long_attribute(intern, phpsvm_svm_type, C_SVC);
@@ -177,13 +185,11 @@ PHP_METHOD(svm, __construct)
 	/*php_svm_set_long_attribute(intern, phpsvm_weight_label, NULL);
 	php_svm_set_double_attribute(intern, phpsvm_weight, NULL); */
 	
-	/* TODO: Move to setter.  */
-	intern->cross_validation = 0;
 	return;
 }
 /* }}} */
 
-/* {{{ array SVM::getTrainingParams();
+/* {{{ array SVM::getOptions();
 Get training parameters, in an array. 
 */
 PHP_METHOD(svm, getOptions) 
@@ -210,13 +216,76 @@ PHP_METHOD(svm, getOptions)
 }
 /* }}} */
 
+
 /* {{{ int SVM::setOptopms(array params);
 Takes an array of parameters and sets the training options to match them. 
 Only used by the training functions, will not modify an existing model. 
 */
 PHP_METHOD(svm, setOptions) 
 {
-	/* TODO: loop over passed array, and send to php_svm_set_long_attribute */
+	HashTable *params_ht;
+	php_svm_object *intern;
+	zval *params, **ppzval;
+	char *string_key = NULL;
+	ulong num_key;
+	
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &params) == FAILURE) {
+		return;
+	}
+	
+	params_ht = HASH_OF(params);
+	
+	if (zend_hash_num_elements(params_ht) == 0) {
+		return;
+	}
+	
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	
+	for (zend_hash_internal_pointer_reset(params_ht);
+		 zend_hash_get_current_data(params_ht, (void **) &ppzval) == SUCCESS;
+		 zend_hash_move_forward(params_ht)) {
+		
+		zval tmp_zval, *tmp_pzval;
+		
+		if (zend_hash_get_current_key(params_ht, &string_key, &num_key, 1) != HASH_KEY_IS_LONG) {
+			continue; /* Ignore the arg (TODO: throw exception?) */
+		}
+		
+		/* Make sure we don't modify the original array */
+		tmp_zval = **ppzval;
+		zval_copy_ctor(&tmp_zval);
+		tmp_pzval = &tmp_zval;
+		
+		/* Long attribute */
+		if (num_key > SvmLongAttributeMin && num_key < SvmLongAttributeMax) {
+	
+			if (Z_TYPE_P(tmp_pzval) != IS_LONG) {
+				convert_to_long(tmp_pzval);
+			}
+			
+			if (!php_svm_set_long_attribute(intern, num_key, Z_LVAL_P(tmp_pzval))) {
+				SVM_THROW("Failed to set the attribute", 999);
+			}
+	
+		/* Double attribute */
+		} else if (num_key > SvmDoubleAttributeMin && num_key < SvmDoubleAttributeMax) {
+			
+			if (Z_TYPE_P(tmp_pzval) != IS_DOUBLE) {
+				convert_to_double(tmp_pzval);
+			}
+			
+			if (!php_svm_set_double_attribute(intern, num_key, Z_DVAL_P(tmp_pzval))) {
+				SVM_THROW("Failed to set the attribute", 999);
+			}
+			
+		} else {
+			continue; /* Ignore the arg (TODO: throw exception?) */
+		}
+		
+		tmp_pzval = NULL;
+	}
+	
+	RETURN_TRUE;
 }
 /* }}} */
 
@@ -230,21 +299,14 @@ PHP_METHOD(svm, save)
 	int filename_len;
 	int result;
 	
-	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                             ZEND_NUM_ARGS() TSRMLS_CC,
-	                             "s", &filename, &filename_len) == FAILURE) {
-		SVM_THROW("Save requires a filename as a string", 103);
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+		return;
 	}
 	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
-	
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	result = svm_save_model(filename, intern->model);
 	
-	if(result == 0) {
-		RETURN_BOOL(1);
-	} else {
-		RETURN_BOOL(0);
-	}
+	RETURN_BOOL((result == 0));
 }
 /* }}} */
 
@@ -257,15 +319,12 @@ PHP_METHOD(svm, load)
 	char *filename;
 	int filename_len;
 	int result;
-	
-	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                             ZEND_NUM_ARGS() TSRMLS_CC,
-	                             "s", &filename, &filename_len) == FAILURE) {
-		SVM_THROW("Load requires a filename as a string", 103);
-		
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+		return;
 	}
-	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
 	
 	/* TODO: Probability support
@@ -301,12 +360,12 @@ PHP_METHOD(svm, predict)
 
 	/* we want an array of data to be passed in */
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
-	    RETURN_NULL();
+	    return;
 	}
 
 	arr_hash = Z_ARRVAL_P(arr);
 	array_count = zend_hash_num_elements(arr_hash);
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -376,6 +435,12 @@ PHP_METHOD(svm, train)
 	int filename_len;
 	unsigned char our_stream;
 	
+	int elements, max_index, inst_max_index, i, j;
+	char *endptr;
+	char *idx, *val, *label;
+	char *error_msg;
+	char str[SVM_MAX_LINE_SIZE];
+	
 	php_svm_object *intern;
 	php_stream *stream;
 
@@ -395,13 +460,7 @@ PHP_METHOD(svm, train)
 		return;
 	}
 	
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
-	
-	int elements, max_index, inst_max_index, i, j;
-	char *endptr;
-	char *idx, *val, *label;
-	char *error_msg;
-	char str[SVM_MAX_LINE_SIZE];
+	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	intern->prob.l = 0;
 	elements = 0;
@@ -440,8 +499,9 @@ PHP_METHOD(svm, train)
 			label = strtok(buf," \t");
 			intern->prob.y[i] = strtod(label,&endptr);
 			if(endptr == label) {
-				sprintf(error_msg, "Invalid format at line %d", i+1);
-				SVM_THROW(error_msg, 101);
+				char err[512];
+				snprintf(err, 512, "Invalid format at line %d", i+1);
+				SVM_THROW(err, 101);
 			}
 
 			while(1) {
@@ -458,8 +518,9 @@ PHP_METHOD(svm, train)
 				}
 				intern->x_space[j].index = (int) strtol(idx,&endptr,10);
 				if(endptr == idx || errno != 0 || *endptr != '\0' || intern->x_space[j].index <= inst_max_index) {
-					sprintf(error_msg, "Invalid format at line %d", i+1);
-					SVM_THROW(error_msg, 101);
+					char err[512];
+					snprintf(err, 512, "Invalid format at line %d", i+1);
+					SVM_THROW(err, 101);
 				} else {
 					inst_max_index = intern->x_space[j].index;
 				}
@@ -467,9 +528,9 @@ PHP_METHOD(svm, train)
 				errno = 0;
 				intern->x_space[j].value = strtod(val,&endptr);
 				if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr))) {
-					sprintf(error_msg, "Invalid format at line %d", i+1);
-					SVM_THROW(error_msg, 101);
-					
+					char err[512];
+					snprintf(err, 512, "Invalid format at line %d", i+1);
+					SVM_THROW(err, 101);
 				}
 
 				++j;
@@ -535,7 +596,11 @@ static void php_svm_object_free_storage(void *object TSRMLS_DC)
 	if (!intern) {
 		return;
 	}
-	svm_destroy_model(intern->model);
+	
+	if (intern->model)
+		svm_destroy_model(intern->model);
+	
+	/* TODO: is this initialized? */
     svm_destroy_param(&(intern->param));
 	zend_object_std_dtor(&intern->zo TSRMLS_CC);
 	efree(intern);
@@ -554,6 +619,9 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	if (ptr) {
 		*ptr = intern;
 	}
+	
+	/* Null model by default */
+	intern->model = NULL;
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
@@ -654,8 +722,30 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("SIGMOID", SIGMOID);
 	SVM_REGISTER_CONST_LONG("PRECOMPUTED", PRECOMPUTED);
 	
+	/* Long options (for setOptions) */
+	SVM_REGISTER_CONST_LONG("OPT_TYPE", phpsvm_svm_type);
+	SVM_REGISTER_CONST_LONG("OPT_KERNEL_TYPE", phpsvm_kernel_type);
+	SVM_REGISTER_CONST_LONG("OPT_DEGREE", phpsvm_degree);
+	SVM_REGISTER_CONST_LONG("OPT_SHRINKING", phpsvm_shrinking);
+	SVM_REGISTER_CONST_LONG("OPT_PROPABILITY", phpsvm_probability);
+	SVM_REGISTER_CONST_LONG("OPT_NR_WEIGHT", phpsvm_nr_weight);
+	SVM_REGISTER_CONST_LONG("OPT_WEIGHT_LABEL", phpsvm_weight_label);
+	
+	/* Double options (for setOptions) */
+	SVM_REGISTER_CONST_LONG("OPT_GAMMA",  phpsvm_gamma);
+	SVM_REGISTER_CONST_LONG("OPT_NU", phpsvm_nu);
+	SVM_REGISTER_CONST_LONG("OPT_EPS", phpsvm_eps);
+	SVM_REGISTER_CONST_LONG("OPT_P", phpsvm_p);
+	SVM_REGISTER_CONST_LONG("OPT_COEF_ZERO", phpsvm_coef0);
+	SVM_REGISTER_CONST_LONG("OPT_C", phpsvm_C);
+	SVM_REGISTER_CONST_LONG("OPT_CACHE_SIZE", phpsvm_cache_size);
+	SVM_REGISTER_CONST_LONG("OPT_WEIGHT", phpsvm_weight);
 
 #undef SVM_REGISTER_CONST_LONG
+
+	/* Redirect the lib svm output */
+	extern void (*svm_print_string) (const char *);
+	svm_print_string = &print_null;
 
 	return SUCCESS;
 }
