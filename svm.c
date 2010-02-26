@@ -35,8 +35,6 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
 
 
 /* 
- TODO: Get options
- TODO: Set options
  TODO: Can we get the save model to give us a string?
  TODO: Can we get save functionality to use a string and write with streams
  TODO: Can we get load to work with streams?
@@ -44,15 +42,17 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
  TODO: Training data in an array
  TODO: Test regression
  TODO: Test multilabel
+ TODO: Cross validation
  TODO: Add serialize and wake up support
  TODO: Add appropriate format doccomments
  TODO: Look at safe_emalloc
+ TODO: Probability support
+ TODO: Clone internal data properly
 */
 
 /* TODO: Catch the printed data and store for logging */
 void print_null(const char *s) {}
 
-/* TODO: Make some of these names a bit more understandable? */
 typedef enum SvmLongAttribute {
 	SvmLongAttributeMin = 100,
 	phpsvm_svm_type,
@@ -199,7 +199,9 @@ PHP_METHOD(svm, getOptions)
 	
 	array_init(return_value); 
 	
-	/* TODO: Make this not suck, this is deeply useless */
+	/* TODO: Make this not suck, this is deeply useless. At the moment we can only
+	see the parameters based on looking themn up in the array with the SVM constants.
+	May be worth keeping this and adding friendly getters setters.  */
 	add_index_long(return_value, phpsvm_svm_type, intern->param.svm_type);
 	add_index_long(return_value, phpsvm_kernel_type, intern->param.kernel_type);
 	add_index_long(return_value, phpsvm_degree, intern->param.degree);
@@ -589,7 +591,6 @@ static void php_svm_init_globals(zend_svm_globals *svm_globals)
 	svm_globals->test = 0;
 }
 
-/* TODO: Check that we're freeing everything we create */
 static void php_svm_object_free_storage(void *object TSRMLS_DC)
 {
 	php_svm_object *intern = (php_svm_object *)object;
