@@ -48,6 +48,8 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
  TODO: Look at safe_emalloc
  TODO: Probability support
  TODO: Clone internal data properly
+ TODO: Validate the data passed to train, to avoid it crashing
+ TODO: Change train to use an array, and add a stream handler to read in the file into an array
 */
 
 /* TODO: Catch the printed data and store for logging */
@@ -392,11 +394,11 @@ PHP_METHOD(svm, predict)
 		} else {
 			x[i].index = index;
 		} 
-		zval_dtor(&temp);
 		temp = **data;
 		zval_copy_ctor(&temp);
 		convert_to_double(&temp);
 		x[i].value = Z_DVAL(temp);
+		zval_dtor(&temp);
 		i++;
 	}
 	/* needed so the predictor knows when to end */
@@ -487,7 +489,6 @@ PHP_METHOD(svm, train)
 		}
 	}
 	php_stream_rewind(stream);
-	
 	intern->prob.y = emalloc((intern->prob.l)*sizeof(double));
 	intern->prob.x = emalloc((intern->prob.l)*sizeof(struct svm_node));
 	intern->x_space = emalloc((elements)*sizeof(struct svm_node));
@@ -559,23 +560,24 @@ PHP_METHOD(svm, train)
 	
 
 	
-	/* TODO: add a setter for cross validaton */
+	/* TODO: add a setter for cross validaton 
 	if(intern->cross_validation) {
-		/* TODO: implement the cross validation stuff 
-		do_cross_validation(); */
+		 TODO: implement the cross validation stuff 
+		do_cross_validation(); 
 	} else {
-		/* Execute the main training function. This is the science bit.  */
-		intern->model = svm_train(&(intern->prob), &(intern->param));
-	}
+		*/
+	/* Execute the main training function. This is the science bit.  */
+	intern->model = svm_train(&(intern->prob), &(intern->param));
 
-	efree(intern->prob.y);
-	efree(intern->prob.x);
-    efree(intern->x_space);
 	if(our_stream == 1) {
 		php_stream_close(stream);
 	}
 	
-	RETURN_BOOL(1);
+	if(!intern->model) {
+		RETURN_BOOL(0);
+	} else {
+		RETURN_BOOL(1);
+	}
 }
 /* }}} */
 
@@ -599,11 +601,23 @@ static void php_svm_object_free_storage(void *object TSRMLS_DC)
 		return;
 	}
 	
-	if (intern->model)
+	if (intern->model) {
 		svm_destroy_model(intern->model);
+	}
 	
-	/* TODO: is this initialized? */
-    svm_destroy_param(&(intern->param));
+	if(intern->prob.y) {
+		efree(intern->prob.y);
+	}
+	
+	if(intern->prob.x) {
+		efree(intern->prob.x);
+	}
+	
+	if(intern->x_space) {
+		    efree(intern->x_space); 
+	}
+	
+	/* TODO: Free intern-param weight_label and weight manually if set */
 	zend_object_std_dtor(&intern->zo TSRMLS_CC);
 	efree(intern);
 }
@@ -624,6 +638,9 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	
 	/* Null model by default */
 	intern->model = NULL;
+	intern->prob.x = NULL;
+	intern->prob.y = NULL;
+	intern->x_space = NULL;	
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
