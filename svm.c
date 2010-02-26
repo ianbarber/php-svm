@@ -199,20 +199,21 @@ PHP_METHOD(svm, getOptions)
 	
 	array_init(return_value); 
 	
-	add_assoc_long(return_value, "svm_type", intern->param.svm_type);
-	add_assoc_long(return_value, "kernel_type", intern->param.kernel_type);
-	add_assoc_long(return_value, "degree", intern->param.degree);
-	add_assoc_long(return_value, "shrinking", intern->param.shrinking);
-	add_assoc_long(return_value, "probability", intern->param.probability);
-	add_assoc_long(return_value, "nr_weight", intern->param.nr_weight);
+	/* TODO: Make this not suck, this is deeply useless */
+	add_index_long(return_value, phpsvm_svm_type, intern->param.svm_type);
+	add_index_long(return_value, phpsvm_kernel_type, intern->param.kernel_type);
+	add_index_long(return_value, phpsvm_degree, intern->param.degree);
+	add_index_long(return_value, phpsvm_coef0, intern->param.shrinking);
+	add_index_long(return_value, phpsvm_probability, intern->param.probability);
+	add_index_long(return_value, phpsvm_nr_weight, intern->param.nr_weight);
 	
-	add_assoc_double(return_value, "gamma", intern->param.gamma);
-	add_assoc_double(return_value, "coef0", intern->param.coef0);
-	add_assoc_double(return_value, "nu", intern->param.nu);
-	add_assoc_double(return_value, "cache_size", intern->param.cache_size);
-	add_assoc_double(return_value, "C", intern->param.C);
-	add_assoc_double(return_value, "eps", intern->param.eps);
-	add_assoc_double(return_value, "p", intern->param.p);
+	add_index_long(return_value,  phpsvm_gamma, intern->param.gamma);
+	add_index_long(return_value,  phpsvm_coef0, intern->param.coef0);
+	add_index_long(return_value,  phpsvm_nu, intern->param.nu);
+	add_index_long(return_value,  phpsvm_cache_size, intern->param.cache_size);
+	add_index_long(return_value,  phpsvm_C, intern->param.C);
+	add_index_long(return_value,  phpsvm_eps, intern->param.eps);
+	add_index_long(return_value,  phpsvm_p, intern->param.p);
 }
 /* }}} */
 

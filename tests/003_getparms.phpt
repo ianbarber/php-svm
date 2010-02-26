@@ -14,13 +14,13 @@ if(count($params) > 2) {
 	echo "retrieving params failed";
 }
 
-if(isset($params['cache_size'])) {
+if(isset($params[SVM::OPT_CACHE_SIZE])) {
 	echo "ok 2\n";
 } else {
 	echo "missing cache size";
 }
 
-if($params['cache_size'] == 100) {
+if($params[SVM::OPT_CACHE_SIZE] == 100) {
 	echo "ok 3\n";
 } else {
 	echo "invalid cache size";
