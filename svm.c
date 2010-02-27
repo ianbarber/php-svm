@@ -408,156 +408,220 @@ PHP_METHOD(svm, predict)
 }
 /* }}} */
 
+static int count_occurences_of(const char needle, const char *haystack)
+{
+	int occurances = 0;
 
-/* {{{ int SVM::train(mixed file);
+	while (*haystack != '\0') {
+		if (*(haystack++) == needle)
+			occurances++;
+	}
+	return occurances;
+}
+
+static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval)
+{
+	while (!php_stream_eof(stream)) {
+		char buf[SVM_MAX_LINE_SIZE];
+		size_t retlen = 0;
+		
+		/* Read line by line */
+		if (php_stream_get_line(stream, buf, SVM_MAX_LINE_SIZE, &retlen)) {
+		
+			zval *line_array, *pz_label;
+			char *label, *ptr, *l = NULL;
+
+			ptr   = buf;
+			label = php_strtok_r(ptr, " \t", &l);
+
+			if (!label) {
+				return 0;
+			}
+			
+			/* The line array */
+			MAKE_STD_ZVAL(line_array);
+			array_init(line_array);
+
+			/* The label */
+			MAKE_STD_ZVAL(pz_label);
+			ZVAL_STRING(pz_label, label, 1);
+			convert_to_double(pz_label);
+
+			/* Label is the first item in the line array */
+			add_next_index_zval(line_array, pz_label);
+			
+			/* Read rest of the values on the line */
+			while (1) {
+				char *idx, *value;
+				zval *pz_idx, *pz_value;
+				
+				/* idx:value format */
+				idx   = php_strtok_r(NULL, ":", &l);
+				value = php_strtok_r(NULL, " \t", &l);
+			
+				if (!value)
+					break;
+				
+				/* Make zvals and convert to correct types */
+				MAKE_STD_ZVAL(pz_idx);
+				ZVAL_STRING(pz_idx, idx, 1);
+				convert_to_long(pz_idx);
+				
+				MAKE_STD_ZVAL(pz_value);
+				ZVAL_STRING(pz_value, value, 1);
+				convert_to_double(pz_value);
+				
+				add_next_index_zval(line_array, pz_idx);
+				add_next_index_zval(line_array, pz_value);
+			}
+			add_next_index_zval(retval, line_array);
+		}
+	}
+	return 1;
+}
+
+static int _php_count_values(zval *array)
+{
+	zval **ppzval;
+	int values = 0;
+
+	for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));
+		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
+		 zend_hash_move_forward(Z_ARRVAL_P(array))) {
+		
+		if (Z_TYPE_PP(ppzval) == IS_ARRAY)
+			values += zend_hash_num_elements(Z_ARRVAL_PP(ppzval));
+	}
+	return values;
+}
+
+static zend_bool php_svm_read_array(php_svm_object *intern, zval *array)
+{
+	zval **ppzval;
+	
+	char *err_msg;
+	int i, j = 0, num_labels, elements;
+	struct svm_problem *problem;
+	
+	/* Allocate the problem */
+	problem = emalloc(sizeof(struct svm_problem));
+	
+	/* x and y */
+	num_labels = zend_hash_num_elements(HASH_OF(array));
+	
+	/* Allocate space for the labels */
+	problem->y = emalloc(num_labels * sizeof(double));
+	
+	/* allocate space for x */
+	problem->x = emalloc(num_labels * sizeof(struct svm_node *));
+	
+	/* total number of elements */
+	elements = _php_count_values(array);
+	
+	intern->x_space = NULL;
+	
+	/* How many labels */
+	problem->l = num_labels;
+
+	/* Fill the problem */
+	for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(array)), i = 0;
+		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
+		 zend_hash_move_forward(Z_ARRVAL_P(array)), i++) {
+	
+		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
+
+			problem->x[i] = &(intern->x_space[j]);
+			zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
+			
+			while (1) {
+				zval **ppz_idz, **ppz_value;
+				
+				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
+					(zend_hash_move_forward(Z_ARRVAL_P(array)) == SUCCESS) &&
+					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {
+				
+					/* Allocate some space as we go */
+					intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
+				
+					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
+					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+			
+					j++;
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	
+	err_msg = svm_check_parameter(problem, &(intern->param));
+	
+	if (err_msg) {
+		fprintf(stderr, "Error: %s\n", err_msg);
+	}
+	
+	intern->model = svm_train(problem, &(intern->param));
+
+	/* Failure ? */
+	if (!intern->model) {
+		fprintf(stderr, "Training failed\n");
+	}
+
+	return 1;
+}
+
+
+/* {{{ int SVM::train(mixed filename|handle);
 Train a SVM based on the SVMLight format data either in a file, or in a previously opened stream. 
 @throws SVMException if the data format is incorrect
 */
 PHP_METHOD(svm, train)
 {
-	zval *zstream;
-	char *filename;
-	int filename_len;
-	unsigned char our_stream;
-	
-	int elements, max_index, inst_max_index, i, j;
-	char *endptr;
-	char *idx, *val, *label;
-	char *error_msg;
-	char str[SVM_MAX_LINE_SIZE];
-	
 	php_svm_object *intern;
-	php_stream *stream;
+	php_stream *stream = NULL;
+	zval *zstream, *retval;
+	zend_bool our_stream;
+	
+	zend_bool status = 0;
 
-	/* TODO: Allow training from an array of data */
-	/* TODO: Allow training from a string containing svmlight formatted data */
-	if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                             ZEND_NUM_ARGS() TSRMLS_CC,
-	                             "s", &filename, &filename_len) == SUCCESS) {
-		stream = php_stream_open_wrapper(filename, "r", REPORT_ERRORS, NULL);
-		our_stream = 1;
-	} else if (zend_parse_parameters_ex(ZEND_PARSE_PARAMS_QUIET,
-	                                    ZEND_NUM_ARGS(), "r", &zstream) == SUCCESS) {
-	    php_stream_from_zval(stream, &zstream);
-		our_stream = 0;
-		
-	} else {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zstream) == FAILURE) {
 		return;
 	}
-	
+
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+	if (Z_TYPE_P(zstream) == IS_STRING) {
+		stream = php_stream_open_wrapper(Z_STRVAL_P(zstream), "r", REPORT_ERRORS, NULL);
+		our_stream = 1;
+	} else if (Z_TYPE_P(zstream) == IS_RESOURCE){
+		php_stream_from_zval(stream, &zstream);
+		our_stream = 0;
+		
+		if (!stream)
+			RETURN_FALSE;
+	}
 	
-	intern->prob.l = 0;
-	elements = 0;
-	
-	// This just gets the max length in entries and dimensions
-	while(!php_stream_eof(stream)) {
-		char buf[SVM_MAX_LINE_SIZE];
-		if (php_stream_gets(stream, buf, sizeof(buf))) {
-			char *p = strtok(buf, " \t");
-			while(1) {
-				p = strtok(NULL, " \t");
-				if(p == NULL || *p == '\n') {
-					break;
-				}
-				++elements;
-			}
-			++elements;
-			intern->prob.l++;
-		} else {
-		    break;
+	/* Initialize as an array */
+	MAKE_STD_ZVAL(retval);
+	array_init(retval);
+
+	/* Need to make an array out of the file */
+	if (php_svm_stream_to_array(intern, stream, retval)) {
+
+		if (intern->x_space) {
+			efree(intern->x_space);
+			intern->x_space = NULL;
+		}
+		
+		if (php_svm_read_array(intern, retval)) {
+			status = 1;
 		}
 	}
-	php_stream_rewind(stream);
 	
-	intern->prob.y = emalloc((intern->prob.l)*sizeof(double));
-	intern->prob.x = emalloc((intern->prob.l)*sizeof(struct svm_node));
-	intern->x_space = emalloc((elements)*sizeof(struct svm_node));
-	max_index = 0;
-	j=0;
+	zval_dtor(retval);
+	FREE_ZVAL(retval);
 	
-	for(i=0; i<intern->prob.l; i++)	{
-		char buf[SVM_MAX_LINE_SIZE];
-		inst_max_index = -1; // strtol gives 0 if wrong format, and precomputed kernel has <index> start from 0
-		if (php_stream_gets(stream, buf, sizeof(buf))) {
-			intern->prob.x[i] = &(intern->x_space[j]);
-			label = strtok(buf," \t");
-			intern->prob.y[i] = strtod(label,&endptr);
-			if(endptr == label) {
-				char err[512];
-				snprintf(err, 512, "Invalid format at line %d", i+1);
-				SVM_THROW(err, 101);
-			}
-
-			while(1) {
-				idx = strtok(NULL,":");
-				val = strtok(NULL," \t");
-
-				if(val == NULL) {
-					break;
-				}
-		                        
-				errno = 0;
-				if(j > elements) {
-					SVM_THROW("More data than expected found", 104);
-				}
-				intern->x_space[j].index = (int) strtol(idx,&endptr,10);
-				if(endptr == idx || errno != 0 || *endptr != '\0' || intern->x_space[j].index <= inst_max_index) {
-					char err[512];
-					snprintf(err, 512, "Invalid format at line %d", i+1);
-					SVM_THROW(err, 101);
-				} else {
-					inst_max_index = intern->x_space[j].index;
-				}
-
-				errno = 0;
-				intern->x_space[j].value = strtod(val,&endptr);
-				if(endptr == val || errno != 0 || (*endptr != '\0' && !isspace(*endptr))) {
-					char err[512];
-					snprintf(err, 512, "Invalid format at line %d", i+1);
-					SVM_THROW(err, 101);
-				}
-
-				++j;
-			}
-
-			if(inst_max_index > max_index) {
-				max_index = inst_max_index;
-			}
-
-			intern->x_space[j++].index = -1;
-		}
-	}
-
-	if(intern->param.gamma == 0 && max_index > 0) {
-		intern->param.gamma = 1.0/max_index;
-	}
-	
-	/* Validate the parameters aren't mental */
-	error_msg = svm_check_parameter(&(intern->prob), &(intern->param));
-	if(error_msg != NULL) {
-		SVM_THROW(error_msg, 102);
-	}
-	
-
-	
-	/* TODO: add a setter for cross validaton */
-	if(intern->cross_validation) {
-		/* TODO: implement the cross validation stuff 
-		do_cross_validation(); */
-	} else {
-		/* Execute the main training function. This is the science bit.  */
-		intern->model = svm_train(&(intern->prob), &(intern->param));
-	}
-
-	efree(intern->prob.y);
-	efree(intern->prob.x);
-    efree(intern->x_space);
-	if(our_stream == 1) {
-		php_stream_close(stream);
-	}
-	
-	RETURN_BOOL(1);
+	RETURN_BOOL(status);
 }
 /* }}} */
 
@@ -584,9 +648,12 @@ static void php_svm_object_free_storage(void *object TSRMLS_DC)
 	
 	if (intern->model)
 		svm_destroy_model(intern->model);
-	
-	/* TODO: is this initialized? */
-    svm_destroy_param(&(intern->param));
+		
+	if (intern->x_space) {
+		efree(intern->x_space);
+		intern->x_space = NULL;
+	}	
+
 	zend_object_std_dtor(&intern->zo TSRMLS_CC);
 	efree(intern);
 }
@@ -607,6 +674,7 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	
 	/* Null model by default */
 	intern->model = NULL;
+	intern->x_space = NULL;
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
