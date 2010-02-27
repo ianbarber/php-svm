@@ -17,7 +17,7 @@
 */
 
 #include "php_svm.h"
-#include "php_ini.h" // needed for 5.2
+#include "php_ini.h" /* needed for 5.2 */
 #include "Zend/zend_exceptions.h"
 #include "ext/standard/info.h"
 
