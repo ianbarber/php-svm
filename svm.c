@@ -591,7 +591,7 @@ PHP_METHOD(svm, train)
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 
 	if (Z_TYPE_P(zstream) == IS_STRING) {
-		stream = php_stream_open_wrapper(Z_STRVAL_P(zstream), "r", REPORT_ERRORS, NULL);
+		stream = php_stream_open_wrapper(Z_STRVAL_P(zstream), "r", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL);
 		our_stream = 1;
 	} else if (Z_TYPE_P(zstream) == IS_RESOURCE){
 		php_stream_from_zval(stream, &zstream);
@@ -620,6 +620,9 @@ PHP_METHOD(svm, train)
 	
 	zval_dtor(retval);
 	FREE_ZVAL(retval);
+	
+	if (our_stream)
+		php_stream_close(stream);
 	
 	RETURN_BOOL(status);
 }
