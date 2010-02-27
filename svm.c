@@ -35,12 +35,10 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
 
 
 /* 
- TODO: Can we get the save model to give us a string?
- TODO: Can we get save functionality to use a string and write with streams
- TODO: Can we get load to work with streams?
- TODO: Retrieve parameters for existing model
+ TODO: Get train array from file
+ TODO: Replace x_space with PHP array, and set prob.x to point to the values of the arr vals. 
+ TODO: Retrieve parameters for existing model (is this worth doing?)
  TODO: Training data in an array
- TODO: Test regression
  TODO: Test multilabel
  TODO: Cross validation
  TODO: Add serialize and wake up support
@@ -50,6 +48,8 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
  TODO: Clone internal data properly
  TODO: Validate the data passed to train, to avoid it crashing
  TODO: Change train to use an array, and add a stream handler to read in the file into an array
+ TODO: Support stream context setting
+ TODO: LibSVM+ support
 */
 
 /* TODO: Catch the printed data and store for logging */
@@ -664,6 +664,7 @@ static zend_object_value php_svm_clone_object(zval *this_ptr TSRMLS_DC)
 	/* 
 	TODO: copy model across for clone
 	TODO: copy params across for clone
+	memcpy? set to null so unclonable?
 	*/
 
 	zend_objects_clone_members(&new_obj->zo, new_ov, &old_obj->zo, Z_OBJ_HANDLE_P(this_ptr) TSRMLS_CC);
@@ -735,11 +736,11 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("NU_SVR", NU_SVR);
 	
 	/* Kernel types */
-	SVM_REGISTER_CONST_LONG("LINEAR", LINEAR);
-	SVM_REGISTER_CONST_LONG("POLY", POLY);
-	SVM_REGISTER_CONST_LONG("RBF", RBF);
-	SVM_REGISTER_CONST_LONG("SIGMOID", SIGMOID);
-	SVM_REGISTER_CONST_LONG("PRECOMPUTED", PRECOMPUTED);
+	SVM_REGISTER_CONST_LONG("KERNEL_LINEAR", LINEAR);
+	SVM_REGISTER_CONST_LONG("KERNEL_POLY", POLY);
+	SVM_REGISTER_CONST_LONG("KERNEL_RBF", RBF);
+	SVM_REGISTER_CONST_LONG("KERNEL_SIGMOID", SIGMOID);
+	SVM_REGISTER_CONST_LONG("KERNEL_PRECOMPUTED", PRECOMPUTED);
 	
 	/* Long options (for setOptions) */
 	SVM_REGISTER_CONST_LONG("OPT_TYPE", phpsvm_svm_type);
