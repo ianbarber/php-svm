@@ -504,7 +504,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array)
 	zval **ppzval;
 	
 	char *err_msg;
-	int i, j = 0, num_labels, elements;
+	int i, j = 0, num_labels, elements, max_index, inst_max_index;
 	struct svm_problem *problem;
 	
 	/* If reading multiple times make sure that we don't leak */
@@ -560,13 +560,24 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array)
 				
 					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
 					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+					
+					inst_max_index = intern->x_space[j].index;
 			
 					j++;
 				} else {
 					break;
 				}
 			}
+			intern->x_space[j++].index = -1;
+			
+			if (inst_max_index > max_index) {
+				max_index = inst_max_index;
+			}
 		}
+	}
+	
+	if (intern->param.gamma == 0 && max_index > 0) {
+		intern->param.gamma = 1.0/max_index;
 	}
 	
 	err_msg = svm_check_parameter(problem, &(intern->param));
