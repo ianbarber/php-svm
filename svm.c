@@ -28,11 +28,12 @@ static zend_object_handlers svm_object_handlers;
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
-zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
-return;
+			zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
+			return;
 
 ZEND_DECLARE_MODULE_GLOBALS(svm);
 
+#define SVM_SET_ERROR_MSG(intern, ...) snprintf(intern->last_error, 512, __VA_ARGS__);
 
 /* 
  TODO: Get options
@@ -424,6 +425,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 	while (!php_stream_eof(stream)) {
 		char buf[SVM_MAX_LINE_SIZE];
 		size_t retlen = 0;
+		int line = 1;
 		
 		/* Read line by line */
 		if (php_stream_get_line(stream, buf, SVM_MAX_LINE_SIZE, &retlen)) {
@@ -435,6 +437,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			label = php_strtok_r(ptr, " \t", &l);
 
 			if (!label) {
+				SVM_LAST_ERROR(intern, "Incorrect data format on line %d", line);
 				return 0;
 			}
 			
@@ -475,6 +478,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 				add_next_index_zval(line_array, pz_value);
 			}
 			add_next_index_zval(retval, line_array);
+			line++;
 		}
 	}
 	return 1;
@@ -502,6 +506,17 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array)
 	char *err_msg;
 	int i, j = 0, num_labels, elements;
 	struct svm_problem *problem;
+	
+	/* If reading multiple times make sure that we don't leak */
+	if (intern->x_space) {
+		efree(intern->x_space);
+		intern->x_space = NULL;
+	}
+	
+	if (intern->model) {
+		svm_destroy_model(intern->model);
+		intern->model = NULL;
+	}
 	
 	/* Allocate the problem */
 	problem = emalloc(sizeof(struct svm_problem));
@@ -557,16 +572,17 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array)
 	err_msg = svm_check_parameter(problem, &(intern->param));
 	
 	if (err_msg) {
-		fprintf(stderr, "Error: %s\n", err_msg);
+		SVM_SET_ERROR_MSG(intern, err_msg);
+		return 0;
 	}
 	
 	intern->model = svm_train(problem, &(intern->param));
 
 	/* Failure ? */
 	if (!intern->model) {
-		fprintf(stderr, "Training failed\n");
+		SVM_SET_ERROR_MSG(intern, "Failed to train using the data");
+		return 0;
 	}
-
 	return 1;
 }
 
@@ -607,24 +623,22 @@ PHP_METHOD(svm, train)
 
 	/* Need to make an array out of the file */
 	if (php_svm_stream_to_array(intern, stream, retval)) {
-
-		if (intern->x_space) {
-			efree(intern->x_space);
-			intern->x_space = NULL;
-		}
 		
 		if (php_svm_read_array(intern, retval)) {
 			status = 1;
 		}
 	}
-	
 	zval_dtor(retval);
 	FREE_ZVAL(retval);
 	
 	if (our_stream)
 		php_stream_close(stream);
 	
-	RETURN_BOOL(status);
+	if (!status) {
+		SVM_THROW((strlen(intern->last_error) > 0 ? intern->last_error : "Training failed"), 1000);
+	}
+	
+	RETURN_TRUE;
 }
 /* }}} */
 
@@ -649,8 +663,10 @@ static void php_svm_object_free_storage(void *object TSRMLS_DC)
 		return;
 	}
 	
-	if (intern->model)
+	if (intern->model) {
 		svm_destroy_model(intern->model);
+		intern->model = NULL;
+	}	
 		
 	if (intern->x_space) {
 		efree(intern->x_space);
@@ -678,6 +694,8 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	/* Null model by default */
 	intern->model = NULL;
 	intern->x_space = NULL;
+	memset(intern->last_error, 0, 512);
+
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));

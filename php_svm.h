@@ -64,6 +64,10 @@ typedef struct _php_svm_object  {
 	/* Number of folds for cross validation. 
 	  Must be at least 2, or it's not really cross validation. */
 	int nr_fold;
+	
+	/* Store the last error message here */
+	char last_error[512];
+
 } php_svm_object;
 
 extern zend_module_entry svm_module_entry;
