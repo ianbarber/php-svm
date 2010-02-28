@@ -523,7 +523,6 @@ static int _php_count_values(zval *array)
 
 /* {{{ int php_svm_read_array(php_svm_object *intern, zval *array);
 Take a PHP array, and prepare libSVM problem data for training with. 
- 
 */
 static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_DC)
 {
@@ -580,14 +579,18 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
 					(zend_hash_move_forward(Z_ARRVAL_P(array)) == SUCCESS) &&
 					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {
+						
+					if(!problem->y[i]) {
+						problem->y[i] = (double) Z_DVAL_PP(ppz_value);
+					} else {
+						/* Allocate some space as we go */
+						intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
 				
-					/* Allocate some space as we go */
-					intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
-				
-					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
-					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+						intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
+						intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
 					
-					inst_max_index = intern->x_space[j].index;
+						inst_max_index = intern->x_space[j].index;
+					}
 			
 					j++;
 				} else {
@@ -616,8 +619,8 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 	
 	intern->model = svm_train(problem, &(intern->param));
 	
-	efree(problem.x);
-	efree(problem.y);
+	efree(problem->x);
+	efree(problem->y);
 	efree(problem);
 
 	/* Failure ? */
