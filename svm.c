@@ -529,7 +529,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 	zval **ppzval;
 	
 	char *err_msg;
-	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0;
+	int i, j = 0, j_old, num_labels, elements, max_index = 0, inst_max_index = 0;
 	struct svm_problem *problem;
 	
 	/* If reading multiple times make sure that we don't leak */
@@ -569,29 +569,29 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 		 zend_hash_move_forward(Z_ARRVAL_P(array)), i++) {
 	
 		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
-
-			problem->x[i] = &(intern->x_space[j]);
+			zval **ppz_label;
+			j_old = j;
+			
 			zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
+			
+			if((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS)) {
+				problem->y[i] = (double) Z_DVAL_PP(ppz_label);
+				zend_hash_move_forward(Z_ARRVAL_PP(ppzval));
+			}
 			
 			while (1) {
 				zval **ppz_idz, **ppz_value;
-				
-				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
-					(zend_hash_move_forward(Z_ARRVAL_P(array)) == SUCCESS) &&
-					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {
-						
-					if(!problem->y[i]) {
-						problem->y[i] = (double) Z_DVAL_PP(ppz_value);
-					} else {
-						/* Allocate some space as we go */
-						intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
-				
-						intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
-						intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
 					
-						inst_max_index = intern->x_space[j].index;
-					}
+				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
+					(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
+					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
+					/* Allocate some space as we go */
+					intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
 			
+					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
+					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+				
+					inst_max_index = intern->x_space[j].index;
 					j++;
 				} else {
 					break;
@@ -599,6 +599,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 			}
 			intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
 			intern->x_space[j++].index = -1;
+			problem->x[i] = &(intern->x_space[j_old]);
 			
 			if (inst_max_index > max_index) {
 				max_index = inst_max_index;
