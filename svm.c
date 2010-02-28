@@ -308,6 +308,10 @@ PHP_METHOD(svm, save)
 	}
 	
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	
+	if (!intern->model)
+		SVM_THROW("The object does not contain a model", 2321);
+	
 	result = svm_save_model(filename, intern->model);
 	
 	RETURN_BOOL((result == 0));
