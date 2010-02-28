@@ -6,8 +6,9 @@ if (!extension_loaded('svm')) die('skip');
 ?>
 --FILE--
 <?php
-$svm = new svm();
+$svm = new svmmodel();
 $result = $svm->load(dirname(__FILE__) . '/australian.model');
+
 if($result) {
 	$data = array(
 		"1" => 1,
