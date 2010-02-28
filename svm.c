@@ -45,7 +45,6 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
  TODO: Add appropriate format doccomments
  TODO: Look at safe_emalloc
  TODO: Probability support
- TODO: Clone internal data properly
  TODO: Validate the data passed to train, to avoid it crashing
  TODO: Support stream context setting
  TODO: LibSVM+ support
@@ -531,7 +530,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 	zval **ppzval;
 	
 	char *err_msg;
-	int i, j = 0, num_labels, elements;
+	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0;
 	struct svm_problem *problem;
 	
 	/* If reading multiple times make sure that we don't leak */
@@ -587,13 +586,25 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 				
 					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
 					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+					
+					inst_max_index = intern->x_space[j].index;
 			
 					j++;
 				} else {
 					break;
 				}
 			}
+			intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
+			intern->x_space[j++].index = -1;
+			
+			if (inst_max_index > max_index) {
+				max_index = inst_max_index;
+			}
 		}
+	}
+	
+	if (intern->param.gamma == 0 && max_index > 0) {
+		intern->param.gamma = 1.0/max_index;
 	}
 	
 	err_msg = svm_check_parameter(problem, &(intern->param));
@@ -740,22 +751,6 @@ static zend_object_value php_svm_object_new(zend_class_entry *class_type TSRMLS_
 	return php_svm_object_new_ex(class_type, NULL TSRMLS_CC);
 }
 
-static zend_object_value php_svm_clone_object(zval *this_ptr TSRMLS_DC)
-{
-	php_svm_object *new_obj = NULL;
-	php_svm_object *old_obj = (php_svm_object *) zend_object_store_get_object(this_ptr TSRMLS_CC);
-	zend_object_value new_ov = php_svm_object_new_ex(old_obj->zo.ce, &new_obj TSRMLS_CC);
-	
-	/* 
-	TODO: copy model across for clone
-	TODO: copy params across for clone
-	memcpy? set to null so unclonable?
-	*/
-
-	zend_objects_clone_members(&new_obj->zo, new_ov, &old_obj->zo, Z_OBJ_HANDLE_P(this_ptr) TSRMLS_CC);
-	return new_ov;
-}
-
 ZEND_BEGIN_ARG_INFO_EX(svm_empty_args, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -799,7 +794,7 @@ PHP_MINIT_FUNCTION(svm)
 
 	INIT_CLASS_ENTRY(ce, "svm", php_svm_class_methods);
 	ce.create_object = php_svm_object_new;
-	svm_object_handlers.clone_obj = php_svm_clone_object;
+	svm_object_handlers.clone_obj = NULL;
 	php_svm_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "svmexception", NULL);
