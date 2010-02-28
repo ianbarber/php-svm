@@ -547,6 +547,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 	elements = _php_count_values(array);
 	
 	intern->x_space = NULL;
+	intern->x_space = emalloc((elements+1) * sizeof(struct svm_node));
 	
 	/* How many labels */
 	problem->l = num_labels;
@@ -577,9 +578,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
 					(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
 					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
-					/* Allocate some space as we go */
-					intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
-			
+					
 					if (Z_TYPE_PP(ppz_label) != IS_LONG) {
 						convert_to_long(*ppz_idz);
 					}
@@ -596,7 +595,6 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 					break;
 				}
 			}
-			intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
 			intern->x_space[j++].index = -1;
 			problem->x[i] = &(intern->x_space[j_old]);
 			
