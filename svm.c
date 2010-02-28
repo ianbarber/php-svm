@@ -146,7 +146,7 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 			intern->param.nr_weight = value;
 			break;
 		case phpsvm_weight_label:
-			intern->param.weight_label = &value;
+			intern->param.weight_label = &value; /* TODO: should be array of ints */
 			break;
 		default:
 			return 0;
@@ -379,8 +379,8 @@ PHP_METHOD(svm, predict)
 	i = 0;
 	zval temp;
 	char *key;
-	int key_len;
-	long index;
+	uint key_len;
+	ulong index;
 	
 	/* Loop over the array in the argument and convert into svm_nodes for the prediction */
 	for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
@@ -388,9 +388,9 @@ PHP_METHOD(svm, predict)
 		zend_hash_move_forward_ex(arr_hash, &pointer)) 
 	{
 		if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_STRING) {
-			x[i].index = (int)strtol(key, &endptr, 10);
+			x[i].index = (int) strtol(key, &endptr, 10);
 		} else {
-			x[i].index = index;
+			x[i].index = (int) index;
 		} 
 		temp = **data;
 		zval_copy_ctor(&temp);
@@ -425,17 +425,6 @@ PHP_METHOD(svm, predict)
 	RETURN_DOUBLE(predict_label);
 }
 /* }}} */
-
-static int count_occurrences_of(const char needle, const char *haystack)
-{
-	int occurrences = 0;
-
-	while (*haystack != '\0') {
-		if (*(haystack++) == needle)
-			occurrences++;
-	}
-	return occurrences;
-}
 
 static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval TSRMLS_DC)
 {
