@@ -455,7 +455,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			label = php_strtok_r(ptr, " \t", &l);
 
 			if (!label) {
-				SVM_LAST_ERROR(intern, "Incorrect data format on line %d", line);
+				SVM_SET_ERROR_MSG(intern, "Incorrect data format on line %d", line);
 				return 0;
 			}
 			
@@ -528,7 +528,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 {
 	zval **ppzval;
 	
-	char *err_msg;
+	const char *err_msg;
 	int i, j = 0, j_old, num_labels, elements, max_index = 0, inst_max_index = 0;
 	struct svm_problem *problem;
 	
@@ -574,9 +574,13 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 			
 			zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
 			
-			if((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS)) {
-				problem->y[i] = (double) Z_DVAL_PP(ppz_label);
-				zend_hash_move_forward(Z_ARRVAL_PP(ppzval));
+			if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS) &&
+			    (zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS)) {
+				
+				if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
+					convert_to_double(*ppz_label);
+				}
+				problem->y[i] = Z_DVAL_PP(ppz_label);
 			}
 			
 			while (1) {
@@ -588,8 +592,15 @@ static zend_bool php_svm_read_array(php_svm_object *intern, zval *array TSRMLS_D
 					/* Allocate some space as we go */
 					intern->x_space = erealloc(intern->x_space, (j + 1) * sizeof(struct svm_node));
 			
+					if (Z_TYPE_PP(ppz_label) != IS_LONG) {
+						convert_to_long(*ppz_idz);
+					}
 					intern->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
-					intern->x_space[j].value = (double) Z_DVAL_PP(ppz_value);
+					
+					if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
+						convert_to_double(*ppz_value);
+					}
+					intern->x_space[j].value = Z_DVAL_PP(ppz_value);
 				
 					inst_max_index = intern->x_space[j].index;
 					j++;
