@@ -388,7 +388,7 @@ PHP_METHOD(svm, predict)
 		zend_hash_move_forward_ex(arr_hash, &pointer)) 
 	{
 		if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_STRING) {
-			x[i].index = (int)strtol(key, &endptr, 10);;
+			x[i].index = (int)strtol(key, &endptr, 10);
 		} else {
 			x[i].index = index;
 		} 
