@@ -322,7 +322,6 @@ PHP_METHOD(svm, load)
 	php_svm_object *intern;
 	char *filename;
 	int filename_len;
-	int result;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
 		return;
