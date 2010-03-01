@@ -563,7 +563,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 	zval **ppzval;
 	
 	const char *err_msg;
-	int i, j = 0, j_old, num_labels, elements, max_index = 0, inst_max_index = 0;
+	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0;
 	struct svm_problem *problem;
 	
 	/* If reading multiple times make sure that we don't leak */
@@ -592,10 +592,8 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 	/* total number of elements */
 	elements = _php_count_values(array);
 	
-	intern_model->x_space = NULL;
-	/* TODO: Work out why we can't just allocate as we go */
-	intern_model->x_space = erealloc(intern_model->x_space, (elements + 1) * sizeof(struct svm_node));
-	
+	intern_model->x_space = emalloc(elements * sizeof(struct svm_node));
+
 	/* How many labels */
 	problem->l = num_labels;
 
@@ -606,7 +604,8 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 	
 		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
 			zval **ppz_label;
-			j_old = j;
+			
+			problem->x[i] = &(intern_model->x_space[j]);
 			
 			zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
 			
@@ -621,15 +620,11 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 			
 			while (1) {
 				zval **ppz_idz, **ppz_value;
-					
+
 				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
 					(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
 					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
-						
-					/* Allocate some space as we go */
-					/* TODO: Work out why num_labels is required. The 005 test doesn't work without it, but there
-					isn't anything that obviously requires the space */
-					intern_model->x_space = erealloc(intern_model->x_space, (j + 1 + num_labels) * sizeof(struct svm_node));
+
 					if (Z_TYPE_PP(ppz_label) != IS_LONG) {
 						convert_to_long(*ppz_idz);
 					}
@@ -646,10 +641,8 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 					break;
 				}
 			}
-			intern_model->x_space = erealloc(intern_model->x_space, (j + 1 + num_labels) * sizeof(struct svm_node));
 			intern_model->x_space[j++].index = -1;
-			problem->x[i] = &(intern_model->x_space[j_old]);
-			
+
 			if (inst_max_index > max_index) {
 				max_index = inst_max_index;
 			}
