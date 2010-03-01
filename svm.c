@@ -30,8 +30,13 @@ static zend_object_handlers svm_model_object_handlers;
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
-			zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
-			return;
+		zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
+		return;
+			
+#define SVM_THROW_LAST_ERROR(fallback, code) \
+		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), (long)code TSRMLS_CC); \
+		memset(intern->last_error, 0, 512); \
+		return;			
 
 ZEND_DECLARE_MODULE_GLOBALS(svm);
 
@@ -562,7 +567,7 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 {
 	zval **ppzval;
 	
-	const char *err_msg;
+	char *err_msg = NULL;
 	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0;
 	struct svm_problem *problem;
 	
@@ -592,6 +597,8 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 	/* total number of elements */
 	elements = _php_count_values(array);
 	
+	/* Allocate space: because the original array contains labels the alloc
+		should match as we add additional -1 node in the loop */
 	intern_model->x_space = emalloc(elements * sizeof(struct svm_node));
 
 	/* How many labels */
@@ -602,50 +609,62 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
 		 zend_hash_move_forward(Z_ARRVAL_P(array)), i++) {
 	
-		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
-			zval **ppz_label;
+		zval **ppz_label;
+	
+		if (Z_TYPE_PP(ppzval) != IS_ARRAY) {
+			err_msg = "Data format error";
+			goto return_error;
+		}	
+						
+		if (zend_hash_num_elements(Z_ARRVAL_PP(ppzval)) % 2 == 0) {
+			err_msg = "Wrong amount of nodes in the sub-array";
+			goto return_error;
+		}
+		
+		problem->x[i] = &(intern_model->x_space[j]);
+		
+		zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
+		
+		if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS) &&
+		    (zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS)) {
 			
-			problem->x[i] = &(intern_model->x_space[j]);
-			
-			zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
-			
-			if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS) &&
-			    (zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS)) {
+			if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
+				convert_to_double(*ppz_label);
+			}
+			problem->y[i] = Z_DVAL_PP(ppz_label);
+		} else {
+			err_msg = "The sub-array contains only the label. Missing index-value pairs";
+			goto return_error;
+		}
+		
+		while (1) {
+			zval **ppz_idz, **ppz_value;
+
+			if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
+				(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
+				(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
+
+				if (Z_TYPE_PP(ppz_label) != IS_LONG) {
+					convert_to_long(*ppz_idz);
+				}
+				intern_model->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
 				
 				if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
-					convert_to_double(*ppz_label);
+					convert_to_double(*ppz_value);
 				}
-				problem->y[i] = Z_DVAL_PP(ppz_label);
-			}
+				intern_model->x_space[j].value = Z_DVAL_PP(ppz_value);
 			
-			while (1) {
-				zval **ppz_idz, **ppz_value;
-
-				if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
-					(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
-					(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
-
-					if (Z_TYPE_PP(ppz_label) != IS_LONG) {
-						convert_to_long(*ppz_idz);
-					}
-					intern_model->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
-					
-					if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
-						convert_to_double(*ppz_value);
-					}
-					intern_model->x_space[j].value = Z_DVAL_PP(ppz_value);
-				
-					inst_max_index = intern_model->x_space[j].index;
-					j++;
-				} else {
-					break;
-				}
+				inst_max_index = intern_model->x_space[j].index;
+				j++;
+			} else {
+				break;
 			}
-			intern_model->x_space[j++].index = -1;
+		}
+		
+		intern_model->x_space[j++].index = -1;
 
-			if (inst_max_index > max_index) {
-				max_index = inst_max_index;
-			}
+		if (inst_max_index > max_index) {
+			max_index = inst_max_index;
 		}
 	}
 	
@@ -656,22 +675,42 @@ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object
 	err_msg = svm_check_parameter(problem, &(intern->param));
 	
 	if (err_msg) {
-		SVM_SET_ERROR_MSG(intern, err_msg);
-		return 0;
+		goto return_error;
 	}
 	
 	intern_model->model = svm_train(problem, &(intern->param));
-	
-	efree(problem->x);
-	efree(problem->y);
-	efree(problem);
 
 	/* Failure ? */
 	if (!intern_model->model) {
-		SVM_SET_ERROR_MSG(intern, "Failed to train using the data");
-		return 0;
+		err_msg = "Failed to train using the data";
+		goto return_error;
 	}
+	
+	if (problem->x)	
+		efree(problem->x);
+		
+	if (problem->y)
+		efree(problem->y);
+	
+	if (problem)
+		efree(problem);
 	return 1;
+	
+return_error:
+	if (problem->x)	
+		efree(problem->x);
+		
+	if (problem->y)
+		efree(problem->y);
+	
+	if (problem)
+		efree(problem);
+	
+	if (err_msg) {
+		SVM_SET_ERROR_MSG(intern, err_msg);
+	}
+		
+	return 0;
 }
 
 /* {{{ SVMModel SVM::train(mixed filename|handle);
@@ -684,55 +723,81 @@ PHP_METHOD(svm, train)
 	php_svm_model_object *intern_return;
 	
 	php_stream *stream = NULL;
-	zval *zstream, *retval;
-	zend_bool our_stream;
+	zval *data, *zparam, *retval;
+	zend_bool our_stream = 0;
 	
-	zend_bool status = 0;
+	zend_bool need_read = 1, status = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zstream) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zparam) == FAILURE) {
 		return;
 	}
 
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	
+	switch (Z_TYPE_P(zparam)) {
+		
+		case IS_STRING:
+			stream = php_stream_open_wrapper(Z_STRVAL_P(zparam), "r", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL);
+			our_stream = 1;
+		break;
+		
+		case IS_RESOURCE:
+			php_stream_from_zval(stream, &zparam);
+			our_stream = 0;
+		break;
+		
+		case IS_ARRAY:
+			our_stream = 0;
+			need_read  = 0;
+		break;
+		
+		default:
+			SVM_THROW("Incorrect parameter type, expecting string, stream or an array", 324);
+		break;
+	}
 
-	if (Z_TYPE_P(zstream) == IS_STRING) {
-		stream = php_stream_open_wrapper(Z_STRVAL_P(zstream), "r", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL);
-		our_stream = 1;
-	} else if (Z_TYPE_P(zstream) == IS_RESOURCE){
-		php_stream_from_zval(stream, &zstream);
-		our_stream = 0;
+	/* If we got stream then read it in */
+	if (need_read) {
 		
 		if (!stream) {
-			RETURN_FALSE;
+			SVM_THROW("Failed to open the data file", 2344);
 		}
-	}
-	
-	/* Initialize as an array */
-	MAKE_STD_ZVAL(retval);
-	array_init(retval);
-
-	/* Need to make an array out of the file */
-	if (php_svm_stream_to_array(intern, stream, retval TSRMLS_CC)) {
-
-		object_init_ex(return_value, php_svm_model_sc_entry);
-		intern_return = (php_svm_model_object *)zend_object_store_get_object(return_value TSRMLS_CC);
 		
-		if (php_svm_read_array(intern, intern_return, retval TSRMLS_CC)) {
-			status = 1;
+		MAKE_STD_ZVAL(data);
+		array_init(data);
+		
+		if (!php_svm_stream_to_array(intern, stream, data TSRMLS_CC)) {
+			zval_dtor(data);
+			FREE_ZVAL(data);
+			if (our_stream) {
+				php_stream_close(stream);
+			}
+			SVM_THROW("Failed to read the data", 234);
 		}
+	} else {
+		data = zparam;
 	}
-	zval_dtor(retval);
-	FREE_ZVAL(retval);
-	
+
+	/* Return the object */
+	object_init_ex(return_value, php_svm_model_sc_entry);
+	intern_return = (php_svm_model_object *)zend_object_store_get_object(return_value TSRMLS_CC);
+
+	if (php_svm_read_array(intern, intern_return, data TSRMLS_CC)) {
+		status = 1;
+	}
+
+	if (need_read) {
+		zval_dtor(data);
+		FREE_ZVAL(data);
+	}
+
 	if (our_stream) {
 		php_stream_close(stream);
 	}
 	
 	if (!status) {
-		zval_dtor(return_value);
-		SVM_THROW((strlen(intern->last_error) > 0 ? intern->last_error : "Training failed"), 1000);
+		SVM_THROW_LAST_ERROR("Training failed", 1000);
 	}
-	
 	return;
 }
 /* }}} */
@@ -893,7 +958,7 @@ PHP_MINIT_FUNCTION(svm)
 
 	INIT_CLASS_ENTRY(ce, "svmmodel", php_svm_model_class_methods);
 	ce.create_object = php_svm_model_object_new;
-	svm_object_handlers.clone_obj = NULL;
+	svm_model_object_handlers.clone_obj = NULL;
 	php_svm_model_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "svmexception", NULL);
