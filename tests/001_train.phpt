@@ -8,16 +8,14 @@ if (!extension_loaded('svm')) die('skip');
 <?php
 $svm = new svm();
 $result = $svm->train(dirname(__FILE__) . '/australian.scale');
-if($result) {
-	if($svm->save(dirname(__FILE__) . '/australian.model')) {
-		echo "ok";
-	} else {
-		echo "model save failure";
-	}
-	
-} else {
-	echo "training failed";
+
+try {
+	$result->save(dirname(__FILE__) . '/australian.model');
+	echo "ok";
+} catch (SvmException $e) {
+	echo $e->getMessage();
 }
+
 ?>
 --EXPECT--
 ok
