@@ -15,15 +15,16 @@ $data = array(
 $svm = new svm();
 
 $svm->setOptions(array(
-	SVM::OPT_KERNEL_TYPE => SVM::NU_SVC,
-	SVM::OPT_TYPE => SVM::KERNEL_LINEAR,
+	SVM::OPT_TYPE => SVM::NU_SVC,
+	SVM::OPT_KERNEL_TYPE => SVM::KERNEL_LINEAR,
 	SVM::OPT_P => 0.1,  // epsilon 0.1
 ));
+echo "training";
 $model = $svm->train(dirname(__FILE__) . '/abalone.scale');
-
+echo "trained";
 if($model) {
 	echo "ok train\n";
-
+	return;
 	foreach($data as $class => $d) {
 		$result = $model->predict($d);
 		if($result > 0) {

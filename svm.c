@@ -52,6 +52,7 @@ ZEND_DECLARE_MODULE_GLOBALS(svm);
  TODO: Add tests for different kernel parameters
  TODO: Kernel and SVM type validation
  TODO: Support weight label and weight in params
+ TODO: Support precomputer kernel
 */
 
 void print_null(const char *s) {}
