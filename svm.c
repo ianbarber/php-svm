@@ -49,8 +49,6 @@ typedef enum SvmLongAttribute {
 	phpsvm_degree,
 	phpsvm_shrinking,
 	phpsvm_probability,
-	phpsvm_nr_weight,
-	phpsvm_weight_label,
 	SvmLongAttributeMax /* Always add before this */
 } SvmLongAttribute;
 
@@ -66,11 +64,6 @@ typedef enum SvmDoubleAttribute {
 	phpsvm_weight,
 	SvmDoubleAttributeMax /* Always add before this */
 } SvmDoubleAttribute;
-
-/* 
- TODO: Normalise array format to predict
- TODO: Add tests based on responses main svm-predict gives to same inputs
-*/
 
 /* ---- START HELPER FUNCS ---- */
 
@@ -151,12 +144,6 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 		case phpsvm_probability:
 			intern->param.probability = value;
 			break;
-		case phpsvm_nr_weight:
-			intern->param.nr_weight = value;
-			break;
-		case phpsvm_weight_label:
-			intern->param.weight_label = &value; /* TODO: should be array of ints */
-			break;
 		default:
 			return 0;
 	}
@@ -222,8 +209,9 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 				ZVAL_STRING(pz_value, value, 1);
 				convert_to_double(pz_value);
 				
-				add_next_index_zval(line_array, pz_idx);
-				add_next_index_zval(line_array, pz_value);
+				add_index_zval(line_array, Z_LVAL_P(pz_idx), pz_value);
+				zval_dtor(pz_idx);
+				FREE_ZVAL(pz_idx);
 			}
 			add_next_index_zval(retval, line_array);
 			line++;
@@ -276,8 +264,12 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	zval **ppzval;
 	
 	char *err_msg = NULL;
-	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0;
+	char *key;
+	char *endptr;
+	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0, key_len;
+	long index;
 	struct svm_problem *problem;
+	HashPosition pointer;
 	
 	/* If reading multiple times make sure that we don't leak */
 	if (intern_model->x_space) {
@@ -324,7 +316,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 			goto return_error;
 		}	
 						
-		if (zend_hash_num_elements(Z_ARRVAL_PP(ppzval)) % 2 == 0) {
+		if (zend_hash_num_elements(Z_ARRVAL_PP(ppzval)) < 2) {
 			err_msg = "Wrong amount of nodes in the sub-array";
 			goto return_error;
 		}
@@ -333,8 +325,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 		
 		zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
 		
-		if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS) &&
-		    (zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS)) {
+		if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS)) {
 			
 			if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
 				convert_to_double(*ppz_label);
@@ -346,16 +337,16 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 		}
 		
 		while (1) {
-			zval **ppz_idz, **ppz_value;
+			zval **ppz_value;
 
-			if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_idz) == SUCCESS) &&
-				(zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) &&
+			if ((zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) && 
 				(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
 
-				if (Z_TYPE_PP(ppz_label) != IS_LONG) {
-					convert_to_long(*ppz_idz);
+				if (zend_hash_get_current_key(Z_ARRVAL_PP(ppzval), key, &index, 0) == HASH_KEY_IS_STRING) {
+					intern_model->x_space[j].index = (int) strtol(key, &endptr, 10);
+				} else {
+					intern_model->x_space[j].index = (int) index;
 				}
-				intern_model->x_space[j].index = (int) Z_LVAL_PP(ppz_idz);
 				
 				if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
 					convert_to_double(*ppz_value);
@@ -511,10 +502,6 @@ PHP_METHOD(svm, __construct)
 	php_svm_set_double_attribute(intern, phpsvm_p, 0.1);
 	php_svm_set_long_attribute(intern, phpsvm_shrinking, 1);
 	php_svm_set_long_attribute(intern, phpsvm_probability, 0);
-	php_svm_set_long_attribute(intern, phpsvm_nr_weight, 0);
-	/* TODO: Support these param types */
-	/*php_svm_set_long_attribute(intern, phpsvm_weight_label, NULL);
-	php_svm_set_double_attribute(intern, phpsvm_weight, NULL); */
 	
 	return;
 }
@@ -535,7 +522,6 @@ PHP_METHOD(svm, getOptions)
 	add_index_long(return_value, phpsvm_degree, intern->param.degree);
 	add_index_long(return_value, phpsvm_coef0, intern->param.shrinking);
 	add_index_long(return_value, phpsvm_probability, intern->param.probability);
-	add_index_long(return_value, phpsvm_nr_weight, intern->param.nr_weight);
 	
 	add_index_long(return_value,  phpsvm_gamma, intern->param.gamma);
 	add_index_long(return_value,  phpsvm_coef0, intern->param.coef0);
@@ -742,7 +728,7 @@ PHP_METHOD(svm, train)
 
 				zval tmp_zval, *tmp_pzval;
 
-				if (zend_hash_get_current_key(weights_ht, &key, &index, 0) == HASH_KEY_IS_LONG) {
+				if (zend_hash_get_current_key(weights_ht, key, &index, 0) == HASH_KEY_IS_LONG) {
 					intern->param.weight_label[i] = (int)index;	
 				
 					/* Make sure we don't modify the original array */
@@ -1130,8 +1116,6 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("OPT_DEGREE", phpsvm_degree);
 	SVM_REGISTER_CONST_LONG("OPT_SHRINKING", phpsvm_shrinking);
 	SVM_REGISTER_CONST_LONG("OPT_PROPABILITY", phpsvm_probability);
-	SVM_REGISTER_CONST_LONG("OPT_NR_WEIGHT", phpsvm_nr_weight);
-	SVM_REGISTER_CONST_LONG("OPT_WEIGHT_LABEL", phpsvm_weight_label);
 	
 	/* Double options (for setOptions) */
 	SVM_REGISTER_CONST_LONG("OPT_GAMMA",  phpsvm_gamma);
