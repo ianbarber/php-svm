@@ -69,19 +69,9 @@ typedef enum SvmDoubleAttribute {
 
 /* 
  TODO: Catch file not found error on stream opening and chuck an exception
- TODO: Cross validation unit test
  TODO: Change train array format 
- TODO: 'Grid' function for parameter suggestion
- TODO: Test multilabel
- TODO: Add serialize and wake up support
- TODO: Probability support
- TODO: Validate the data passed to train, to avoid it crashing
- TODO: Support stream context setting
- TODO: LibSVM+ support
- TODO: Catch the printed data from libsvm via print_null and store for logging
  TODO: Kernel and SVM type validation
  TODO: Support weight label and weight in params
- TODO: Support precomputed kernel
  TODO: Add tests based on responses main svm-predict gives to same inputs
 */
 
@@ -136,11 +126,9 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 
 	switch (name) {
 		case phpsvm_svm_type:
-			/* TODO: Validation against list */
 			intern->param.svm_type = (int)value;
 			break;
 		case phpsvm_kernel_type:
-			/* TODO: Validation against list */
 			intern->param.kernel_type = (int)value;
 			break;
 		case phpsvm_degree:
@@ -760,11 +748,6 @@ PHP_METHOD(svmmodel, __construct)
 	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
 	
-	/* TODO: Probability support
-			if(svm_check_probability_model(model)==0)
-			if(svm_check_probability_model(model)!=0)
-			*/
-	
 	if (!intern->model) {
 		SVM_THROW("Failed to load the model", 1233);	
 	}
@@ -788,11 +771,6 @@ PHP_METHOD(svmmodel, load)
 
 	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
-	
-	/* TODO: Probability support
-			if(svm_check_probability_model(model)==0)
-			if(svm_check_probability_model(model)!=0)
-			*/
 	
 	if (!intern->model) {
 		SVM_THROW("Failed to load the model", 1233);
@@ -834,7 +812,6 @@ PHP_METHOD(svmmodel, save)
 */
 PHP_METHOD(svmmodel, predict)
 {
-	/* TODO: probability stuff */
 	php_svm_model_object *intern;
 	double predict_label;
 	struct svm_node *x;
@@ -886,26 +863,9 @@ PHP_METHOD(svmmodel, predict)
 	/* needed so the predictor knows when to end */
 	x[i].index = -1;
 
-	/*
-	TODO: This stuff
-	if (predict_probability && (svm_type==C_SVC || svm_type==NU_SVC))
-	{
-		predict_label = svm_predict_probability(model,x,prob_estimates);
-		fprintf(output,"%g",predict_label);
-		for(j=0;j<nr_class;j++)
-			fprintf(output," %g",prob_estimates[j]);
-		fprintf(output,"\n");
-	}
-	*/
-	
 	predict_label = svm_predict(intern->model, x);
 	efree(x);
-
-	/*
-	TODO: Prob stuff
-	if(predict_probability)
-		free(prob_estimates);
-		*/	
+	
 	RETURN_DOUBLE(predict_label);
 }
 /* }}} */
