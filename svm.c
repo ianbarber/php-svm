@@ -68,8 +68,6 @@ typedef enum SvmDoubleAttribute {
 } SvmDoubleAttribute;
 
 /* 
- TODO: Change train array format 
- TODO: Kernel and SVM type validation
  TODO: Support weight label and weight in params
  TODO: Add tests based on responses main svm-predict gives to same inputs
 */
@@ -125,9 +123,23 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 
 	switch (name) {
 		case phpsvm_svm_type:
+			if( value != C_SVC &&
+				value != NU_SVC && 
+				value != ONE_CLASS && 
+				value != EPSILON_SVR && 
+				value != NU_SVR ) {
+					return 0;
+			}
 			intern->param.svm_type = (int)value;
 			break;
 		case phpsvm_kernel_type:
+			if( value != LINEAR &&
+				value != POLY && 
+				value != RBF && 
+				value != SIGMOID && 
+				value != PRECOMPUTED ) {
+					return 0;
+			}
 			intern->param.kernel_type = (int)value;
 			break;
 		case phpsvm_degree:
