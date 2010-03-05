@@ -68,7 +68,7 @@ typedef enum SvmDoubleAttribute {
 } SvmDoubleAttribute;
 
 /* 
- TODO: Support weight label and weight in params
+ TODO: Normalise array format to predict
  TODO: Add tests based on responses main svm-predict gives to same inputs
 */
 
@@ -696,34 +696,70 @@ PHP_METHOD(svm, crossvalidate)
 }
 /* }}} */
 
-/* {{{ SVMModel SVM::train(mixed string|resource|array);
+/* {{{ SVMModel SVM::train(mixed string|resource|array, [array classWeights]);
 Train a SVM based on the SVMLight format data either in a file, an array, or in a previously opened stream. 
-@throws SVMException if the data format is incorrect
+@throws SVMException if the data format is incorrect. Can optionally accept a set of weights that will 
+be used to multiply C. Only useful for C_SVC kernels. These should be in the form array(class (int) => weight (float)) 
 */
 PHP_METHOD(svm, train)
 {
 	php_svm_object *intern;
 	php_svm_model_object *intern_return;
 	struct svm_problem *problem;
-	zval *data, *zparam, *retval;
+	zval *data, *zparam, *retval, *weights, **ppzval;
+	HashTable *weights_ht;
+	int i;
+	char **key;
+	long index;
 	
 	zend_bool status = 0;
+	weights = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zparam) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|a!", &zparam, &weights) == FAILURE) {
 		return;
 	}
 
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(weights && intern->param.svm_type != C_SVC) {
+		SVM_THROW("Weights can only be supplied for C_SVC training", 424);
+	}
 	
 	data = php_svm_get_data_from_param(intern, zparam TSRMLS_CC);
 	if(!data) {
 		SVM_THROW_LAST_ERROR("Could not load data", 234);
 	}
+	
+	if(weights) {
+		weights_ht = Z_ARRVAL_P(weights);
+		if(zend_hash_num_elements(weights_ht) > 0) {
+			intern->param.nr_weight = zend_hash_num_elements(weights_ht);
+			intern->param.weight_label = emalloc(intern->param.nr_weight * sizeof(int));
+			intern->param.weight = emalloc(intern->param.nr_weight * sizeof(double));
+		
+			for (zend_hash_internal_pointer_reset(weights_ht), i = 0;
+				 zend_hash_get_current_data(weights_ht, (void **) &ppzval) == SUCCESS;
+				 zend_hash_move_forward(weights_ht), i++) {
 
-	/* Return the object */
+				zval tmp_zval, *tmp_pzval;
+
+				if (zend_hash_get_current_key(weights_ht, &key, &index, 0) == HASH_KEY_IS_LONG) {
+					intern->param.weight_label[i] = (int)index;	
+				
+					/* Make sure we don't modify the original array */
+					tmp_zval = **ppzval;
+					zval_copy_ctor(&tmp_zval);
+					tmp_pzval = &tmp_zval;
+					convert_to_double(tmp_pzval);
+					intern->param.weight[i] = Z_DVAL_P(tmp_pzval);
+					tmp_pzval = NULL;
+				}
+			}
+		}
+	}
+
+	/* Return an object */
 	object_init_ex(return_value, php_svm_model_sc_entry);
 	intern_return = (php_svm_model_object *)zend_object_store_get_object(return_value TSRMLS_CC);
-
 
 	problem = php_svm_read_array(intern, intern_return, data TSRMLS_CC);
 	if(problem != NULL) {
@@ -731,6 +767,11 @@ PHP_METHOD(svm, train)
 			status = 1;
 		} 
 		php_svm_free_problem(problem);
+	}
+
+	if(weights) {
+		efree(intern->param.weight_label);
+		efree(intern->param.weight);
 	}
 	
 	if (data != zparam) {
@@ -997,6 +1038,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(svm_train_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, problem)
+	ZEND_ARG_INFO(0, weights)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(svm_crossvalidate_args, 0, 0, 2)
