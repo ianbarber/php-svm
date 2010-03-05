@@ -68,6 +68,7 @@ typedef enum SvmDoubleAttribute {
 } SvmDoubleAttribute;
 
 /* 
+ TODO: Catch file not found error on stream opening and chuck an exception
  TODO: Cross validation unit test
  TODO: Change train array format 
  TODO: 'Grid' function for parameter suggestion
@@ -383,6 +384,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	return problem;
 	
 return_error:
+	php_svm_free_problem(problem);
 	if (err_msg) {
 		SVM_SET_ERROR_MSG(intern, err_msg);
 	}
@@ -627,6 +629,7 @@ PHP_METHOD(svm, crossvalidate)
 {
 	int i;
 	int total_correct = 0;
+	long nrfolds;
 	double total_error = 0;
 	double sumv = 0, sumy = 0, sumvv = 0, sumyy = 0, sumvy = 0;
 	struct svm_problem *problem;
@@ -636,13 +639,13 @@ PHP_METHOD(svm, crossvalidate)
 	php_svm_model_object *intern_return;
 	zval *zparam, *data, *zcount, *tempobj;
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &zparam, &zcount) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &zparam, &nrfolds) == FAILURE) {
 		return;
 	}
 
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
-	/* TODO: Rework so that this isn't needed in this way, bit hacky */
+	ALLOC_INIT_ZVAL(tempobj);
 	object_init_ex(tempobj, php_svm_model_sc_entry);
 	intern_return = (php_svm_model_object *)zend_object_store_get_object(tempobj TSRMLS_CC);
 	
@@ -653,7 +656,7 @@ PHP_METHOD(svm, crossvalidate)
 	}
 	
  	target = emalloc(problem->l * sizeof(double));
-	svm_cross_validation(problem, &(intern->param), Z_LVAL_P(zcount), target);
+	svm_cross_validation(problem, &(intern->param), nrfolds, target);
 	if(intern->param.svm_type == EPSILON_SVR || intern->param.svm_type == NU_SVR) {
 		for(i=0;i<problem->l;i++) {
 			double y = problem->y[i];
@@ -672,8 +675,15 @@ PHP_METHOD(svm, crossvalidate)
 				++total_correct;
 			}
 		}
-		returnval = (total_correct/problem->l);
+		returnval = 1.0*total_correct/problem->l;
 	}
+	
+	if (data != zparam) {
+		zval_dtor(data);
+		FREE_ZVAL(data);
+	}
+	zval_dtor(tempobj);
+	FREE_ZVAL(tempobj);
 	efree(target);
 	php_svm_free_problem(problem);
 	
@@ -714,7 +724,7 @@ PHP_METHOD(svm, train)
 		} 
 		php_svm_free_problem(problem);
 	}
-
+	
 	if (data != zparam) {
 		zval_dtor(data);
 		FREE_ZVAL(data);

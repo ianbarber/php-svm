@@ -11,8 +11,6 @@ $result = $svm->crossvalidate(dirname(__FILE__) . '/australian.scale', 5);
 if($result > 0) {
 	echo "ok";
 }
-echo $result;
-
 ?>
 --EXPECT--
 ok

@@ -48,13 +48,6 @@ typedef struct _php_svm_object  {
 	zend_object zo;
 	/* hold the SVM parameters */
 	struct svm_parameter param; 
-
-	/* Whether cross validation should be performed*/
-	unsigned char cross_validation;
-
-	/* Number of folds for cross validation. 
-	  Must be at least 2, or it's not really cross validation. */
-	int nr_fold;
 	
 	/* Store the last error message here */
 	char last_error[512];
