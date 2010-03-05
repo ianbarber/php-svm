@@ -68,7 +68,6 @@ typedef enum SvmDoubleAttribute {
 } SvmDoubleAttribute;
 
 /* 
- TODO: Catch file not found error on stream opening and chuck an exception
  TODO: Change train array format 
  TODO: Kernel and SVM type validation
  TODO: Support weight label and weight in params
@@ -432,14 +431,16 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 		break;
 		
 		default:
-			SVM_THROW("Incorrect parameter type, expecting string, stream or an array", 324);
+			SVM_SET_ERROR_MSG(intern, "Incorrect parameter type, expecting string, stream or an array");
+			return 0;
 		break;
 	}
 
 	/* If we got stream then read it in */
 	if (need_read) {
 		if (!stream) {
-			SVM_THROW("Failed to open the data file", 2344);
+			SVM_SET_ERROR_MSG(intern, "Failed to open the data file");
+			return 0;
 		}
 		
 		MAKE_STD_ZVAL(data);
@@ -451,7 +452,8 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 			if (our_stream) {
 				php_stream_close(stream);
 			}
-			SVM_THROW("Failed to read the data", 234);
+			SVM_SET_ERROR_MSG(intern, "Failed to read the data");
+			return 0;
 		}
 	} else {
 		data = zparam;
@@ -638,6 +640,9 @@ PHP_METHOD(svm, crossvalidate)
 	intern_return = (php_svm_model_object *)zend_object_store_get_object(tempobj TSRMLS_CC);
 	
 	data = php_svm_get_data_from_param(intern, zparam TSRMLS_CC);
+	if(!data) {
+		SVM_THROW_LAST_ERROR("Could not load data", 234);
+	}
 	problem = php_svm_read_array(intern, intern_return, data TSRMLS_CC);
 	if(!problem) {
 		SVM_THROW_LAST_ERROR("Cross validation failed", 1001);
@@ -699,6 +704,9 @@ PHP_METHOD(svm, train)
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	
 	data = php_svm_get_data_from_param(intern, zparam TSRMLS_CC);
+	if(!data) {
+		SVM_THROW_LAST_ERROR("Could not load data", 234);
+	}
 
 	/* Return the object */
 	object_init_ex(return_value, php_svm_model_sc_entry);
