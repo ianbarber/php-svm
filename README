@@ -1,10 +1,8 @@
 INTRODUCTION
 
-LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for
-easy use in PHP scripts.
+LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts.
 
-Libsvm itself is required, and is available through some package management, or direct from the website. If installing from the
-website: http://www.csie.ntu.edu.tw/~cjlin/libsvm then some steps will need to be taken as the package does not install
+Libsvm itself is required, and is available through some package management, or direct from the website. If installing from the website: http://www.csie.ntu.edu.tw/~cjlin/libsvm then some steps will need to be taken as the package does not install
 automatically:
 
 wget http://www.csie.ntu.edu.tw/~cjlin/cgi-bin/libsvm.cgi?+http://www.csie.ntu.edu.tw/~cjlin/libsvm+tar.gz 
