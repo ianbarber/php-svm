@@ -1115,7 +1115,7 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("OPT_KERNEL_TYPE", phpsvm_kernel_type);
 	SVM_REGISTER_CONST_LONG("OPT_DEGREE", phpsvm_degree);
 	SVM_REGISTER_CONST_LONG("OPT_SHRINKING", phpsvm_shrinking);
-	SVM_REGISTER_CONST_LONG("OPT_PROPABILITY", phpsvm_probability);
+	SVM_REGISTER_CONST_LONG("OPT_PROBABILITY", phpsvm_probability);
 	
 	/* Double options (for setOptions) */
 	SVM_REGISTER_CONST_LONG("OPT_GAMMA",  phpsvm_gamma);
