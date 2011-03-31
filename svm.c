@@ -1090,8 +1090,9 @@ PHP_MINIT_FUNCTION(svm)
 	php_svm_exception_sc_entry->ce_flags |= ZEND_ACC_FINAL;
 	
 	/* Redirect the lib svm output */
-	extern void (*svm_print_string) (const char *);
-	svm_print_string = &print_null;
+	//extern void (*svm_print_string) (const char *);
+	//svm_print_string = &print_null;
+	svm_set_print_string_function(&print_null);
 
 #define SVM_REGISTER_CONST_LONG(const_name, value) \
 	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, (long)value TSRMLS_CC);	
@@ -1128,10 +1129,6 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("OPT_WEIGHT", phpsvm_weight);
 
 #undef SVM_REGISTER_CONST_LONG
-
-	/* Redirect the lib svm output */
-	extern void (*svm_print_string) (const char *);
-	svm_print_string = &print_null;
 
 	return SUCCESS;
 }
