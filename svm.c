@@ -348,7 +348,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 					intern_model->x_space[j].index = (int) index;
 				}
 				
-				if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
+				if (Z_TYPE_PP(ppz_value) != IS_DOUBLE) {
 					convert_to_double(*ppz_value);
 				}
 				intern_model->x_space[j].value = Z_DVAL_PP(ppz_value);
