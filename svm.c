@@ -342,7 +342,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 			if ((zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) && 
 				(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
 
-				if (zend_hash_get_current_key(Z_ARRVAL_PP(ppzval), key, &index, 0) == HASH_KEY_IS_STRING) {
+				if (zend_hash_get_current_key(Z_ARRVAL_PP(ppzval), &key, &index, 0) == HASH_KEY_IS_STRING) {
 					intern_model->x_space[j].index = (int) strtol(key, &endptr, 10);
 				} else {
 					intern_model->x_space[j].index = (int) index;
@@ -547,7 +547,7 @@ PHP_METHOD(svm, setOptions)
 	ulong num_key;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &params) == FAILURE) {
-		return;
+		RETURN_FALSE;
 	}
 	
 	params_ht = HASH_OF(params);
@@ -695,7 +695,7 @@ PHP_METHOD(svm, train)
 	zval *data, *zparam, *retval, *weights, **ppzval;
 	HashTable *weights_ht;
 	int i;
-	char **key;
+	char *key;
 	long index;
 	
 	zend_bool status = 0;
@@ -728,7 +728,7 @@ PHP_METHOD(svm, train)
 
 				zval tmp_zval, *tmp_pzval;
 
-				if (zend_hash_get_current_key(weights_ht, key, &index, 0) == HASH_KEY_IS_LONG) {
+				if (zend_hash_get_current_key(weights_ht, &key, &index, 0) == HASH_KEY_IS_LONG) {
 					intern->param.weight_label[i] = (int)index;	
 				
 					/* Make sure we don't modify the original array */
