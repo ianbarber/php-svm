@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<package packagerversion="1.9.0" version="2.0" xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0
+http://pear.php.net/dtd/tasks-1.0.xsd
+http://pear.php.net/dtd/package-2.0
+http://pear.php.net/dtd/package-2.0.xsd">
+ <name>svm</name>
+ <channel>pecl.php.net</channel>
+ <summary>Support Vector Machine Library</summary>
+ <description>LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts. 
+ </description>
+ <lead>
+  <name>Ian Barber</name>
+  <user>ianb</user>
+  <email>ian.barber@gmail.co,</email>
+  <active>yes</active>
+ </lead>
+ <date>2011-04-26</date>
+ <time>10:30:00</time>
+ <version>
+  <release>0.9.0</release>
+  <api>0.9.0</api>
+ </version>
+ <stability>
+  <release>beta</release>
+  <api>beta</api>
+ </stability>
+ <license uri="http://www.php.net/license">PHP</license>
+ <notes>
+
+ </notes>
+ <contents>
+   <dir name="/">
+      <!-- Support files -->
+      <file name="config.m4" role="src" />
+
+      <!-- Headers -->
+      <file name="php_svm.h" role="src">
+       <tasks:replace from="@PACKAGE_VERSION@" to="version" type="package-info" />
+      </file>
+
+      <!-- Source files -->
+      <file name="svm.c" role="src" />
+
+      <!-- misc files -->
+      <file name="README" role="doc" />
+      <file name="CREDITS" role="doc" />
+      <file name="LICENSE" role="doc" />
+     </dir>
+ </contents>
+ <dependencies>
+  <required>
+   <php>
+    <min>5.2.0</min>
+   </php>
+   <pearinstaller>
+    <min>1.4.0</min>
+   </pearinstaller>
+  </required>
+ </dependencies>
+ <providesextension>svm</providesextension>
+ <extsrcrelease />
+</package>
