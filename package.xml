@@ -26,7 +26,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP</license>
  <notes>
-
+ Initial packaging.
  </notes>
  <contents>
    <dir name="/">
@@ -37,14 +37,35 @@ http://pear.php.net/dtd/package-2.0.xsd">
       <file name="php_svm.h" role="src">
        <tasks:replace from="@PACKAGE_VERSION@" to="version" type="package-info" />
       </file>
+      <file name="php_svm_internal.h" role="src" />
 
       <!-- Source files -->
       <file name="svm.c" role="src" />
 
-      <!-- misc files -->
+      <!-- Misc files -->
       <file name="README" role="doc" />
       <file name="CREDITS" role="doc" />
       <file name="LICENSE" role="doc" />
+      
+      <!-- Tests -->
+      <dir name="tests">
+        <file name="001_train.phpt" role="test" />
+        <file name="002_predict.phpt" role="test" />
+        <file name="003_getparms.phpt" role="test" />
+        <file name="004_setoptions.phpt" role="test" />
+        <file name="005_regression.phpt" role="test" />
+        <file name="006_train_array.phpt" role="test" />
+        <file name="007_kernels.phpt" role="test" />
+        <file name="008_cross_validate.phpt" role="test" />
+        <file name="009_badfile.phpt" role="test" />
+        <file name="010_weights.phpt" role="test" />
+        <file name="011_inttodouble.phpt" role="test" />
+        <file name="012_baddata.phpt" role="test" />
+        <file name="abalone.scale" role="test" />
+        <file name="australian.model" role="test" />
+        <file name="australian.scale" role="test" />
+        <file name="baddata.scale" role="test" />
+      </dir>
      </dir>
  </contents>
  <dependencies>
