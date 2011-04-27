@@ -17,30 +17,34 @@
 */
 
 #include "php_svm.h"
+#include "php_svm_internal.h"
 #include "php_ini.h" /* needed for 5.2 */
 #include "Zend/zend_exceptions.h"
 #include "ext/standard/info.h"
 
-zend_class_entry *php_svm_sc_entry;
-zend_class_entry *php_svm_model_sc_entry;
-zend_class_entry *php_svm_exception_sc_entry;
+static zend_class_entry *php_svm_sc_entry;
+static zend_class_entry *php_svm_model_sc_entry;
+static zend_class_entry *php_svm_exception_sc_entry;
 
 static zend_object_handlers svm_object_handlers;
 static zend_object_handlers svm_model_object_handlers;
+
+#ifndef TRUE
+#       define TRUE 1
+#       define FALSE 0
+#endif
+
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
 		zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
 		return;
-			
+
+#define SVM_ERROR_MSG_SIZE 512			
 #define SVM_THROW_LAST_ERROR(fallback, code) \
 		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), (long)code TSRMLS_CC); \
-		memset(intern->last_error, 0, 512); \
+		memset(intern->last_error, 0, SVM_ERROR_MSG_SIZE); \
 		return;			
-
-ZEND_DECLARE_MODULE_GLOBALS(svm);
-
-#define SVM_SET_ERROR_MSG(intern, ...) snprintf(intern->last_error, 512, __VA_ARGS__);
 
 typedef enum SvmLongAttribute {
 	SvmLongAttributeMin = 100,
@@ -67,12 +71,12 @@ typedef enum SvmDoubleAttribute {
 
 /* ---- START HELPER FUNCS ---- */
 
-void print_null(const char *s) {}
+static void print_null(const char *s) {}
 
 static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleAttribute name, double value) 
 {
 	if (name >= SvmDoubleAttributeMax) {
-		return 0;
+		return FALSE;
 	}
 	
 	switch (name) {
@@ -102,16 +106,16 @@ static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleA
 			intern->param.weight = &value;
 			break;
 		default:
-			return 0;
+			return FALSE;
 	}
 	
-	return 1;
+	return TRUE;
 }
 
 static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttribute name, long value) 
 {
 	if (name >= SvmLongAttributeMax) {
-		return 0;
+		return FALSE;
 	}
 
 	switch (name) {
@@ -121,7 +125,7 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 				value != ONE_CLASS && 
 				value != EPSILON_SVR && 
 				value != NU_SVR ) {
-					return 0;
+					return FALSE;
 			}
 			intern->param.svm_type = (int)value;
 			break;
@@ -131,7 +135,7 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 				value != RBF && 
 				value != SIGMOID && 
 				value != PRECOMPUTED ) {
-					return 0;
+					return FALSE;
 			}
 			intern->param.kernel_type = (int)value;
 			break;
@@ -145,10 +149,10 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 			intern->param.probability = value;
 			break;
 		default:
-			return 0;
+			return FALSE;
 	}
 	
-	return 1;
+	return TRUE;
 }
 
 /** {{{ zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval TSRMLS_DC)
@@ -172,8 +176,8 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			label = php_strtok_r(ptr, " \t", &l);
 
 			if (!label) {
-				SVM_SET_ERROR_MSG(intern, "Incorrect data format on line %d", line);
-				return 0;
+			    snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Incorrect data format on line %d", line);
+				return FALSE;
 			}
 			
 			/* The line array */
@@ -197,8 +201,9 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 				idx   = php_strtok_r(NULL, ":", &l);
 				value = php_strtok_r(NULL, " \t", &l);
 			
-				if (!value)
+				if (!value) {
 					break;
+				}
 				
 				/* Make zvals and convert to correct types */
 				MAKE_STD_ZVAL(pz_idx);
@@ -217,7 +222,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			line++;
 		}
 	}
-	return 1;
+	return TRUE;
 }
 /* }}} */
 
@@ -234,8 +239,9 @@ static int _php_count_values(zval *array)
 		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
 		 zend_hash_move_forward(Z_ARRVAL_P(array))) {
 		
-		if (Z_TYPE_PP(ppzval) == IS_ARRAY)
+		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
 			values += zend_hash_num_elements(Z_ARRVAL_PP(ppzval));
+		}
 	}
 	return values;
 }
@@ -245,14 +251,17 @@ static int _php_count_values(zval *array)
 Free the generated problem.
 */
 static void php_svm_free_problem(struct svm_problem *problem) {
-	if (problem->x)	
+	if (problem->x)	{
 		efree(problem->x);
+	}
 		
-	if (problem->y)
+	if (problem->y) {
 		efree(problem->y);
+	}
 	
-	if (problem)
+	if (problem) {
 		efree(problem);
+	}
 }
 /* }}} */
 
@@ -376,7 +385,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 return_error:
 	php_svm_free_problem(problem);
 	if (err_msg) {
-		SVM_SET_ERROR_MSG(intern, err_msg);
+		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, err_msg);
 	}
 		
 	return NULL;
@@ -388,22 +397,22 @@ Train based on a libsvm problem structure
 */
 static zend_bool php_svm_train(php_svm_object *intern, php_svm_model_object *intern_model, struct svm_problem *problem) 
 {
-	char *err_msg = NULL;
+	const char *err_msg = NULL;
 	err_msg = svm_check_parameter(problem, &(intern->param));
 	if (err_msg) {
-		SVM_SET_ERROR_MSG(intern, err_msg);
-		return 0;
+		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, err_msg);
+		return FALSE;
 	}
 
 	intern_model->model = svm_train(problem, &(intern->param));
 
 	/* Failure ? */
 	if (!intern_model->model) {
-		SVM_SET_ERROR_MSG(intern, "Failed to train using the data");
-		return 0;
+		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Failed to train using the data");
+		return FALSE;
 	}
 	
-	return 1;
+	return TRUE;
 }
 /* }}} */
 
@@ -434,16 +443,16 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 		break;
 		
 		default:
-			SVM_SET_ERROR_MSG(intern, "Incorrect parameter type, expecting string, stream or an array");
-			return 0;
+			snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Incorrect parameter type, expecting string, stream or an array");
+			return FALSE;
 		break;
 	}
 
 	/* If we got stream then read it in */
 	if (need_read) {
 		if (!stream) {
-			SVM_SET_ERROR_MSG(intern, "Failed to open the data file");
-			return 0;
+			snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Failed to open the data file");
+			return FALSE;
 		}
 		
 		MAKE_STD_ZVAL(data);
@@ -455,8 +464,8 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 			if (our_stream) {
 				php_stream_close(stream);
 			}
-			SVM_SET_ERROR_MSG(intern, "Failed to read the data");
-			return 0;
+			snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Failed to read the data");
+			return FALSE;
 		}
 	} else {
 		data = zparam;
@@ -484,7 +493,7 @@ PHP_METHOD(svm, __construct)
 	php_svm_object *intern;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
-		return;
+        SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
 	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
@@ -786,11 +795,12 @@ PHP_METHOD(svmmodel, __construct)
 	int filename_len;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s!", &filename, &filename_len) == FAILURE) {
-		return;
+		SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
-	if (!filename)
+	if (!filename) {
 		return;
+	}
 
 	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
@@ -882,7 +892,7 @@ PHP_METHOD(svmmodel, predict)
 	}
 	
 	/* need 1 extra to indicate the end */
-	x = emalloc((array_count + 1) *sizeof(struct svm_node));
+	x = safe_emalloc((array_count + 1), sizeof(struct svm_node), 0);
 	
 	i = 0;
 	zval temp;
@@ -918,11 +928,6 @@ PHP_METHOD(svmmodel, predict)
 /* }}} */
 
 /* ---- END SVMMODEL ---- */
-
-static void php_svm_init_globals(zend_svm_globals *svm_globals)
-{
-	/* No globals */
-}
 
 static void php_svm_object_free_storage(void *object TSRMLS_DC)
 {
@@ -1070,8 +1075,6 @@ static function_entry php_svm_model_class_methods[] =
 PHP_MINIT_FUNCTION(svm)
 {
 	zend_class_entry ce;
-	ZEND_INIT_MODULE_GLOBALS(svm, php_svm_init_globals, NULL);
-
 	memcpy(&svm_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	memcpy(&svm_model_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 
@@ -1090,8 +1093,6 @@ PHP_MINIT_FUNCTION(svm)
 	php_svm_exception_sc_entry->ce_flags |= ZEND_ACC_FINAL;
 	
 	/* Redirect the lib svm output */
-	//extern void (*svm_print_string) (const char *);
-	//svm_print_string = &print_null;
 	svm_set_print_string_function(&print_null);
 
 #define SVM_REGISTER_CONST_LONG(const_name, value) \
