@@ -287,7 +287,12 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	}
 	
 	if (intern_model->model) {
-		svm_destroy_model(intern_model->model);
+	    if(LIBSVM_VERSION >= 300) {
+	        svm_free_and_destroy_model(&intern_model->model);
+	    } else {
+	        svm_destroy_model(intern_model->model);
+	    }
+		
 		intern_model->model = NULL;
 	}
 	
@@ -750,6 +755,8 @@ PHP_METHOD(svm, train)
 				}
 			}
 		}
+	} else {
+        intern->param.nr_weight = 0;
 	}
 
 	/* Return an object */
@@ -980,7 +987,12 @@ static void php_svm_model_object_free_storage(void *object TSRMLS_DC)
 	}
 	
 	if (intern->model) {
-		svm_destroy_model(intern->model);
+	    if(LIBSVM_VERSION >= 300) {
+	        svm_free_and_destroy_model(&intern->model);
+	    } else {
+	        svm_destroy_model(intern->model);
+	    }
+	    
 		intern->model = NULL;
 	}	
 	
