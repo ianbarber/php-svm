@@ -62,7 +62,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
         <file name="011_inttodouble.phpt" role="test" />
         <file name="012_baddata.phpt" role="test" />
         <file name="abalone.scale" role="test" />
-        <file name="australian.model" role="test" />
         <file name="australian.scale" role="test" />
         <file name="baddata.scale" role="test" />
       </dir>
