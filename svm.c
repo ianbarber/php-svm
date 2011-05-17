@@ -51,8 +51,6 @@ typedef enum SvmLongAttribute {
 	phpsvm_svm_type,
 	phpsvm_kernel_type,
 	phpsvm_degree,
-	phpsvm_shrinking,
-	phpsvm_probability,
 	SvmLongAttributeMax /* Always add before this */
 } SvmLongAttribute;
 
@@ -65,13 +63,39 @@ typedef enum SvmDoubleAttribute {
 	phpsvm_coef0,
 	phpsvm_C,
 	phpsvm_cache_size,
-	phpsvm_weight,
 	SvmDoubleAttributeMax /* Always add before this */
 } SvmDoubleAttribute;
+
+typedef enum SvmBoolAttribute {
+	SvmBoolAttributeMin = 300,
+	phpsvm_shrinking,
+	phpsvm_probability,
+	SvmBoolAttributeMax /* Always add before this */
+} SvmBoolAttribute;
 
 /* ---- START HELPER FUNCS ---- */
 
 static void print_null(const char *s) {}
+
+static zend_bool php_svm_set_bool_attribute(php_svm_object *intern, SvmBoolAttribute name, zend_bool value) 
+{
+	if (name >= SvmBoolAttributeMax) {
+		return FALSE;
+	}
+	
+	switch (name) {
+		case phpsvm_shrinking:
+			intern->param.shrinking = value == TRUE ? 1 : 0;
+			break;
+		case phpsvm_probability:
+			intern->param.probability = value == TRUE ? 1 : 0;
+			break;
+		default:
+			return FALSE;
+	}
+
+	return TRUE;
+}
 
 static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleAttribute name, double value) 
 {
@@ -100,10 +124,6 @@ static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleA
 			break;
 		case phpsvm_C:
 			intern->param.C = value;
-			break;
-		case phpsvm_weight:
-			/* Pointer */
-			intern->param.weight = &value;
 			break;
 		default:
 			return FALSE;
@@ -141,12 +161,6 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 			break;
 		case phpsvm_degree:
 			intern->param.degree = (int)value;
-			break;
-		case phpsvm_shrinking:
-			intern->param.shrinking = value;
-			break;
-		case phpsvm_probability:
-			intern->param.probability = value;
 			break;
 		default:
 			return FALSE;
@@ -514,8 +528,8 @@ PHP_METHOD(svm, __construct)
 	php_svm_set_double_attribute(intern, phpsvm_C, 1);
 	php_svm_set_double_attribute(intern, phpsvm_eps, 1e-3);
 	php_svm_set_double_attribute(intern, phpsvm_p, 0.1);
-	php_svm_set_long_attribute(intern, phpsvm_shrinking, 1);
-	php_svm_set_long_attribute(intern, phpsvm_probability, 0);
+	php_svm_set_bool_attribute(intern, phpsvm_shrinking, TRUE);
+	php_svm_set_bool_attribute(intern, phpsvm_probability, FALSE);
 	
 	return;
 }
@@ -535,7 +549,8 @@ PHP_METHOD(svm, getOptions)
 	add_index_long(return_value, phpsvm_kernel_type, intern->param.kernel_type);
 	add_index_long(return_value, phpsvm_degree, intern->param.degree);
 	add_index_long(return_value, phpsvm_coef0, intern->param.shrinking);
-	add_index_long(return_value, phpsvm_probability, intern->param.probability);
+	add_index_long(return_value, phpsvm_probability, intern->param.probability == 1 ? TRUE : FALSE);
+	add_index_long(return_value, phpsvm_shrinking, intern->param.shrinking == 1 ? TRUE : FALSE);
 	
 	add_index_long(return_value,  phpsvm_gamma, intern->param.gamma);
 	add_index_long(return_value,  phpsvm_coef0, intern->param.coef0);
@@ -608,7 +623,16 @@ PHP_METHOD(svm, setOptions)
 			if (!php_svm_set_double_attribute(intern, num_key, Z_DVAL_P(tmp_pzval))) {
 				SVM_THROW("Failed to set the attribute", 999);
 			}
+		/* Bool attribute */
+		} else if(num_key > SvmBoolAttributeMin && num_key < SvmBoolAttributeMax) {
 			
+			if (Z_TYPE_P(tmp_pzval) != IS_BOOL) {
+				convert_to_boolean(tmp_pzval);
+			}
+			
+			if (!php_svm_set_bool_attribute(intern, num_key, Z_BVAL_P(tmp_pzval))) {
+				SVM_THROW("Failed to set the attribute", 999);
+			}
 		} else {
 			continue; /* Ignore the arg (TODO: throw exception?) */
 		}
@@ -1139,7 +1163,6 @@ PHP_MINIT_FUNCTION(svm)
 	SVM_REGISTER_CONST_LONG("OPT_COEF_ZERO", phpsvm_coef0);
 	SVM_REGISTER_CONST_LONG("OPT_C", phpsvm_C);
 	SVM_REGISTER_CONST_LONG("OPT_CACHE_SIZE", phpsvm_cache_size);
-	SVM_REGISTER_CONST_LONG("OPT_WEIGHT", phpsvm_weight);
 
 #undef SVM_REGISTER_CONST_LONG
 
