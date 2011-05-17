@@ -1,5 +1,8 @@
 INTRODUCTION
 
+Available via PECL: http://pecl.php.net/package/svm
+Documentation at: http://php.net/manual/en/book.svm.php
+
 LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts. The extension requires PHP 5.2 or above.
 
 Libsvm itself is required, and is available through some package management, or direct from the website. 
