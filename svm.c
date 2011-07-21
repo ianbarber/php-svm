@@ -498,8 +498,55 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 }
 /* }}} */
 
-/* ---- END HELPER FUNCS ---- */
+/* {{{ static svm_node* php_svm_get_data_from_array(zval *arr)
+Take an array of training data and turn it into an array of svm nodes.
+*/
+static struct svm_node* php_svm_get_data_from_array(zval* arr TSRMLS_DC) 
+{
+	struct svm_node *x;
+	zval **data;
+	HashTable *arr_hash;
+	HashPosition pointer;
+	int array_count, i;
+	char *endptr;
+	
+	arr_hash = Z_ARRVAL_P(arr);
+	array_count = zend_hash_num_elements(arr_hash);
+	
+	/* need 1 extra to indicate the end */
+	x = safe_emalloc((array_count + 1), sizeof(struct svm_node), 0);
+	
+	i = 0;
+	zval temp;
+	char *key;
+	uint key_len;
+	ulong index;
+	
+	/* Loop over the array in the argument and convert into svm_nodes for the prediction */
+	for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
+		zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; 
+		zend_hash_move_forward_ex(arr_hash, &pointer)) 
+	{
+		if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_STRING) {
+			x[i].index = (int) strtol(key, &endptr, 10);
+		} else {
+			x[i].index = (int) index;
+		} 
+		temp = **data;
+		zval_copy_ctor(&temp);
+		convert_to_double(&temp);
+		x[i].value = Z_DVAL(temp);
+		zval_dtor(&temp);
+		i++;
+	}
+	/* needed so the predictor knows when to end */
+	x[i].index = -1;
+	
+	return x;
+}
+/* }}} */
 
+/* ---- END HELPER FUNCS ---- */
 
 
 /* ---- START SVM ---- */
@@ -903,58 +950,58 @@ PHP_METHOD(svmmodel, predict)
 	php_svm_model_object *intern;
 	double predict_label;
 	struct svm_node *x;
-	int max_nr_attr = 64;
-	zval *arr, **data;
-	HashTable *arr_hash;
-	HashPosition pointer;
-	int array_count, i;
-	char *endptr;
+	zval *arr;
 
 	/* we want an array of data to be passed in */
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
 	    return;
 	}
-
-	arr_hash = Z_ARRVAL_P(arr);
-	array_count = zend_hash_num_elements(arr_hash);
+	
 	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
 	
-	/* need 1 extra to indicate the end */
-	x = safe_emalloc((array_count + 1), sizeof(struct svm_node), 0);
-	
-	i = 0;
-	zval temp;
-	char *key;
-	uint key_len;
-	ulong index;
-	
-	/* Loop over the array in the argument and convert into svm_nodes for the prediction */
-	for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
-		zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; 
-		zend_hash_move_forward_ex(arr_hash, &pointer)) 
-	{
-		if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_STRING) {
-			x[i].index = (int) strtol(key, &endptr, 10);
-		} else {
-			x[i].index = (int) index;
-		} 
-		temp = **data;
-		zval_copy_ctor(&temp);
-		convert_to_double(&temp);
-		x[i].value = Z_DVAL(temp);
-		zval_dtor(&temp);
-		i++;
-	}
-	/* needed so the predictor knows when to end */
-	x[i].index = -1;
-
+	x = php_svm_get_data_from_array(arr TSRMLS_CC);
 	predict_label = svm_predict(intern->model, x);
 	efree(x);
 	
 	RETURN_DOUBLE(predict_label);
+}
+/* }}} */
+
+/** {{{ SvmModel::predict_probability(array data)
+	Predicts based on the model
+*/
+PHP_METHOD(svmmodel, predict_probability)
+{
+	php_svm_model_object *intern;
+	double predict_probability;
+	int nr_classes;
+	double *estimates;
+	struct svm_node *x;
+	int max_nr_attr = 64;
+	zval *arr;
+	
+	/* we want an array of data to be passed in */
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
+	    return;
+	}
+
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available to classify with", 106);
+	}
+
+	x = php_svm_get_data_from_array(arr TSRMLS_CC);
+	nr_classes = svm_get_nr_class(intern->model);
+	estimates = safe_emalloc(nr_classes, sizeof(double), 0);
+	predict_probability = svm_predict_probability(intern->model, x, estimates);
+	predict_probability = estimates[(int)predict_probability];
+	efree(estimates);
+	efree(x);
+	
+	RETURN_DOUBLE(predict_probability);
 }
 /* }}} */
 
@@ -1105,6 +1152,7 @@ static function_entry php_svm_model_class_methods[] =
 	PHP_ME(svmmodel, save,			svm_model_file_args,	ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, load,			svm_model_file_args,	ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, predict, 		svm_model_predict_args, ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, predict_probability,	svm_model_predict_args, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
 };
 
