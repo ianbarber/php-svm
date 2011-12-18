@@ -11,7 +11,7 @@ $svm->setOptions(array(
 	SVM::OPT_TYPE => SVM::C_SVC,
 	SVM::OPT_KERNEL_TYPE => SVM::KERNEL_LINEAR,
 	SVM::OPT_P => 0.1,  // epsilon 0.1
-	SVM::OPT_PROBABILITY => true
+	SVM::OPT_PROBABILITY => 1
 ));
 $model = $svm->train(dirname(__FILE__) . '/abalone.scale');
 
@@ -27,8 +27,12 @@ if($model) {
 		8 => -0.704036
 	);
 	$class = $model->predict($data);
-	$result = $model->predict_probability($data);
-	if($class == 9 && $result > 0) {
+	$return = array();
+	$result = $model->predict_probability($data, $return);
+    arsort($return);
+    reset($return);
+    $key = key($return);
+	if($class == 9 && $key == 9) {
 		echo "ok";
 	} else {
 		echo "predict failed: $class $result";
