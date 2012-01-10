@@ -285,14 +285,13 @@ Take a PHP array, and prepare libSVM problem data for training with.
 static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array TSRMLS_DC)
 {
 	zval **ppzval;
-	
 	char *err_msg = NULL;
 	char *key;
 	char *endptr;
-	int i, j = 0, num_labels, elements, max_index = 0, inst_max_index = 0, key_len;
+	int i, num_labels, elements;
+	int j = 0, max_index = 0, inst_max_index = 0;
 	long index;
 	struct svm_problem *problem;
-	HashPosition pointer;
 	
 	/* If reading multiple times make sure that we don't leak */
 	if (intern_model->x_space) {
@@ -301,12 +300,12 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	}
 	
 	if (intern_model->model) {
-	    if(LIBSVM_VERSION >= 300) {
-	        svm_free_and_destroy_model(&intern_model->model);
-	    } else {
-	        svm_destroy_model(intern_model->model);
-	    }
-		
+		#if LIBSVM_VERSION >= 300
+			svm_free_and_destroy_model(&intern_model->model);
+		#else
+			svm_destroy_model(intern_model->model);
+		#endif
+	    
 		intern_model->model = NULL;
 	}
 	
@@ -509,18 +508,17 @@ static struct svm_node* php_svm_get_data_from_array(zval* arr TSRMLS_DC)
 	HashPosition pointer;
 	int array_count, i;
 	char *endptr;
+	zval temp;
+	char *key;
+	uint key_len;
+	ulong index;
 	
 	arr_hash = Z_ARRVAL_P(arr);
 	array_count = zend_hash_num_elements(arr_hash);
 	
 	/* need 1 extra to indicate the end */
 	x = safe_emalloc((array_count + 1), sizeof(struct svm_node), 0);
-	
 	i = 0;
-	zval temp;
-	char *key;
-	uint key_len;
-	ulong index;
 	
 	/* Loop over the array in the argument and convert into svm_nodes for the prediction */
 	for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
@@ -710,7 +708,7 @@ PHP_METHOD(svm, crossvalidate)
 	double *target;
 	php_svm_object *intern;
 	php_svm_model_object *intern_return;
-	zval *zparam, *data, *zcount, *tempobj;
+	zval *zparam, *data, *tempobj;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &zparam, &nrfolds) == FAILURE) {
 		return;
@@ -777,7 +775,7 @@ PHP_METHOD(svm, train)
 	php_svm_object *intern;
 	php_svm_model_object *intern_return;
 	struct svm_problem *problem;
-	zval *data, *zparam, *retval, *weights, **ppzval;
+	zval *data, *zparam, *weights, **ppzval;
 	HashTable *weights_ht;
 	int i;
 	char *key;
@@ -1071,11 +1069,11 @@ static void php_svm_model_object_free_storage(void *object TSRMLS_DC)
 	}
 	
 	if (intern->model) {
-	    if(LIBSVM_VERSION >= 300) {
-	        svm_free_and_destroy_model(&intern->model);
-	    } else {
-	        svm_destroy_model(intern->model);
-	    }
+		#if LIBSVM_VERSION >= 300
+			svm_free_and_destroy_model(&intern->model);
+		#else
+			svm_destroy_model(intern->model);
+		#endif
 	    
 		intern->model = NULL;
 	}	
