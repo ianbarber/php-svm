@@ -1,8 +1,8 @@
-PHP_ARG_WITH("svm", "whether to enable svm support", "no")
+ARG_WITH("svm", "whether to enable svm support", "no");
 
 if (PHP_SVM != "no") {
 
-	if (CHECK_HEADER_ADD_INCLUDE("svm.h", "CFLAGS_SVM", PHP_PHP_BUILD + "\\include;" + PHP_SVM)
+	if (CHECK_HEADER_ADD_INCLUDE("svm.h", "CFLAGS_SVM", PHP_PHP_BUILD + "\\include\\libsvm;" + PHP_SVM)
         && CHECK_LIB("libsvm.lib", "svm", PHP_PHP_BUILD + "\\lib;" + PHP_SVM))
 	{
 		EXTENSION('svm', 'svm.c');
