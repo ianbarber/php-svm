@@ -5,6 +5,8 @@ Documentation at: http://php.net/manual/en/book.svm.php
 
 LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts. The extension requires PHP 5.2 or above.
 
+INSTALLATION
+
 Libsvm itself is required, and is available through some package management, or direct from the website. 
 
 On ubuntu and other debian based systems, you may be able to installed the libsvm-dev package:
@@ -25,6 +27,22 @@ ldconfig --print | grep libsvm
 This last step should show libsvm is installed.
 
 Once libsvm is installed, the extension can be installed in the usual way.
+
+INSTALLING ON WINDOWS
+
+A prebuilt win32 DLL is available from http://phpir.com/svm
+
+The extension builds properly on Windows, if following the Windows step by step build process: https://wiki.php.net/internals/windows/stepbystepbuild 
+
+Put SVM source in pecl/svm in php53dev directory
+Download latest libsvm, rename Makefile to Makefile.old and Makefile.win to Makefile - nmake 
+Copy libsvm.lib from libsvm windows directory, and into deps/libs
+Copy svm.h into includes/libsvm/
+buildconf
+configure --disable-all --enable-cli --with-svm=shared
+nmake
+
+Make sure the libsvm.dll file from the libsvm windows directory in the path when running the resulting lib. 
 
 USAGE
 
