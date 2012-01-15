@@ -1048,8 +1048,11 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	memset(intern->last_error, 0, 512);
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
+#if PHP_VERSION_ID < 50399
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
-
+#else
+	object_properties_init(&intern->zo, class_type);
+#endif
 	retval.handle = zend_objects_store_put(intern, NULL, (zend_objects_free_object_storage_t) php_svm_object_free_storage, NULL TSRMLS_CC);
 	retval.handlers = (zend_object_handlers *) &svm_object_handlers;
 	return retval;
@@ -1106,8 +1109,11 @@ static zend_object_value php_svm_model_object_new_ex(zend_class_entry *class_typ
 	intern->x_space = NULL;
 	
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
+#if PHP_VERSION_ID < 50399
 	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
-
+#else
+	object_properties_init(&intern->zo, class_type);
+#endif
 	retval.handle = zend_objects_store_put(intern, NULL, (zend_objects_free_object_storage_t) php_svm_model_object_free_storage, NULL TSRMLS_CC);
 	retval.handlers = (zend_object_handlers *) &svm_model_object_handlers;
 	return retval;
@@ -1135,7 +1141,7 @@ ZEND_BEGIN_ARG_INFO_EX(svm_params_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
 
-static function_entry php_svm_class_methods[] =
+static zend_function_entry php_svm_class_methods[] =
 {
 	PHP_ME(svm, __construct,	svm_empty_args,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(svm, getOptions,		svm_empty_args,	ZEND_ACC_PUBLIC)
@@ -1157,7 +1163,7 @@ ZEND_BEGIN_ARG_INFO_EX(svm_model_file_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-static function_entry php_svm_model_class_methods[] =
+static zend_function_entry php_svm_model_class_methods[] =
 {
 	PHP_ME(svmmodel, __construct,	svm_model_construct_args,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(svmmodel, save,			svm_model_file_args,	ZEND_ACC_PUBLIC)
