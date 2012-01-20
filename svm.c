@@ -940,6 +940,113 @@ PHP_METHOD(svmmodel, save)
 }
 /* }}} */
 
+
+/** {{{ SvmModel::getSvmType()
+	Gets the type of SVM the model was trained with
+*/
+PHP_METHOD(svmmodel, getSvmType)
+{
+	php_svm_model_object *intern;
+	int svm_type;
+	
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available", 106);
+	}
+	
+	svm_type = svm_get_svm_type(intern->model);
+	
+	RETURN_LONG(svm_type);
+}
+
+
+/** {{{ SvmModel::getNrClass()
+	Gets the number of classes the model was trained with. Note that for a regression
+	or 1 class model 2 is returned.
+*/
+PHP_METHOD(svmmodel, getNrClass)
+{
+	php_svm_model_object *intern;
+	int nr_classes;
+	
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available", 106);
+	}
+	
+	nr_classes = svm_get_nr_class(intern->model);
+	
+	RETURN_LONG(nr_classes);
+}
+
+/** {{{ SvmModel::getLabels()
+	Gets an array of labels that the model was trained with. For regression
+	and one class models, an empty array is returned.
+*/
+PHP_METHOD(svmmodel, getLabels)
+{
+	php_svm_model_object *intern;
+	int nr_classes;
+	int* labels;
+	int i;
+	
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available", 106);
+	}
+	
+	nr_classes = svm_get_nr_class(intern->model);
+	labels = safe_emalloc(nr_classes, sizeof(int), 0);
+	svm_get_labels(intern->model, labels);
+	
+	array_init(return_value);
+	
+	for( i = 0; i < nr_classes; i++ ) {
+		add_next_index_long(return_value, labels[i]);
+	}
+	
+	efree(labels);
+}
+
+
+/** {{{ SvmModel::checkProbabilityModel()
+	Returns true if the model contains probability estimates
+*/
+PHP_METHOD(svmmodel, checkProbabilityModel)
+{
+	php_svm_model_object *intern;
+	int prob;
+	
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available", 106);
+	}
+	
+	prob = svm_check_probability_model(intern->model);
+	
+	RETURN_BOOL( prob );
+}
+
+
+/** {{{ SvmModel::getSvrProbability()
+	For regression models, returns a sigma value. If there is no probability
+	information or the model is not SVR, 0 is returned.
+*/
+PHP_METHOD(svmmodel, getSvrProbability)
+{
+	php_svm_model_object *intern;
+	double svr_prob;
+	
+	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	if(!intern->model) {
+		SVM_THROW("No model available", 106);
+	}
+	
+	svr_prob = svm_get_svr_probability(intern->model);
+	
+	RETURN_DOUBLE(svr_prob);
+}
+
 /** {{{ SvmModel::predict(array data)
 	Predicts based on the model
 */
@@ -966,6 +1073,7 @@ PHP_METHOD(svmmodel, predict)
 	
 	RETURN_DOUBLE(predict_label);
 }
+
 /* }}} */
 
 /** {{{ SvmModel::predict_probability(array data, array probabilities)
@@ -1163,11 +1271,19 @@ ZEND_BEGIN_ARG_INFO_EX(svm_model_file_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(svm_model_info_args, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 static zend_function_entry php_svm_model_class_methods[] =
 {
 	PHP_ME(svmmodel, __construct,	svm_model_construct_args,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(svmmodel, save,			svm_model_file_args,	ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, load,			svm_model_file_args,	ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, getSvmType,	svm_model_info_args,	ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, getLabels,		svm_model_info_args,	ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, getNrClass,	svm_model_info_args,	ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, getSvrProbability,	svm_model_info_args,	ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, checkProbabilityModel,	svm_model_info_args,	ZEND_ACC_PUBLIC)	
 	PHP_ME(svmmodel, predict, 		svm_model_predict_args, ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, predict_probability,	svm_model_predict_args, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }

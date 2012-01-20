@@ -1,5 +1,5 @@
 --TEST--
-Get the prediction probility based on the model 
+Get the prediction probability based on the model 
 --SKIPIF--
 <?php
 if (!extension_loaded('svm')) die('skip');

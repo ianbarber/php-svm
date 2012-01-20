@@ -14,11 +14,11 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>ian.barber@gmail.co.uk</email>
   <active>yes</active>
  </lead>
- <date>2011-12-18</date>
- <time>00:01:30</time>
+ <date>2012-01-21</date>
+ <time>19:30:00</time>
  <version>
-  <release>0.1.4</release>
-  <api>0.1.4</api>
+  <release>0.1.5</release>
+  <api>0.1.5</api>
  </version>
  <stability>
   <release>beta</release>
@@ -26,8 +26,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP</license>
  <notes>
-   Replaced predict_probability function with predict_probabilities that more closely
-   mirrors the underlying API. 
+   - Added compatibility with PHP 5.4 - thanks Rasmus!
+   - Added getLabel, getNrClasses, getLabels, and checkSvrProbability to SVMModel class. 
  </notes>
  <contents>
    <dir name="/">
@@ -64,6 +64,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
         <file name="012_baddata.phpt" role="test" />
         <file name="013_boolean_options.phpt" role="test" />
         <file name="014_predict_probability.phpt" role="test" />
+        <file name="015_info_methods.phpt" role="test" />
         <file name="abalone.scale" role="test" />
         <file name="australian.scale" role="test" />
         <file name="baddata.scale" role="test" />
