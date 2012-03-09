@@ -26,21 +26,28 @@ dnl Get PHP version depending on shared/static build
   fi
 
   AC_MSG_CHECKING([for svm.h header])
-  for i in $PHP_SVM /usr/local /usr;
-  do
-    test -r $i/include/libsvm-2.0/libsvm/svm.h && SVM_PREFIX=$i && SVM_INC_DIR=$i/include/libsvm-2.0/ && SVM_OK=1
-  done
-  	
-	if test "$SVM_OK" != "1"; then
     for i in $PHP_SVM /usr/local /usr;
     do
-      test -r $i/include/libsvm/svm.h && SVM_PREFIX=$i && SVM_INC_DIR=$i/include/ && SVM_OK=1
+        test -r $i/include/libsvm-2.0/libsvm/svm.h && SVM_PREFIX=$i && SVM_INC_DIR=$i/include/libsvm-2.0/libsvm/ && SVM_OK=1
     done
-  fi
+  	
+	if test "$SVM_OK" != "1"; then
+        for i in $PHP_SVM /usr/local /usr;
+        do
+          test -r $i/include/libsvm/svm.h && SVM_PREFIX=$i && SVM_INC_DIR=$i/include/libsvm/ && SVM_OK=1
+        done
+    fi
+    
+    if test "$SVM_OK" != "1"; then
+        for i in $PHP_SVM /usr/local /usr;
+        do
+          test -r $i/include/svm.h && SVM_PREFIX=$i && SVM_INC_DIR=$i/include/ && SVM_OK=1
+        done
+    fi
   
-  if test "$SVM_OK" != "1"; then
-    AC_MSG_ERROR([Unable to find svm.h])
-  fi
+    if test "$SVM_OK" != "1"; then
+        AC_MSG_ERROR([Unable to find svm.h])
+    fi
   
   AC_MSG_RESULT([found in $SVM_INC_DIR])
   

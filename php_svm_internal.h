@@ -19,7 +19,7 @@
 #ifndef _PHP_SVM_INTERNAL_H_
 # define _PHP_SVM_INTERNAL_H_
 
-#include <libsvm/svm.h>
+#include <svm.h>
 
 typedef struct _php_svm_object  {
 	zend_object zo;
