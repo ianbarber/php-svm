@@ -1310,9 +1310,13 @@ PHP_MINIT_FUNCTION(svm)
 	php_svm_exception_sc_entry->ce_flags |= ZEND_ACC_FINAL;
 	
 	/* Redirect the lib svm output */
+	#if LIBSVM_VERSION >= 291
 	svm_set_print_string_function(&print_null);
+	#else
+	svm_print_string = &print_null;
+	#endif
 
-#define SVM_REGISTER_CONST_LONG(const_name, value) \
+        #define SVM_REGISTER_CONST_LONG(const_name, value) \
 	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, (long)value TSRMLS_CC);	
 
 	/* SVM types */

@@ -17,7 +17,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <date>2012-01-21</date>
  <time>19:30:00</time>
  <version>
-  <release>0.1.6</release>
+  <release>0.1.7</release>
   <api>0.1.5</api>
  </version>
  <stability>
@@ -26,8 +26,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP</license>
  <notes>
-   - Added compatibility with PHP 5.4 - thanks Rasmus!
-   - Added getLabel, getNrClasses, getLabels, and checkSvrProbability to SVMModel class. 
+	- Fixed support for older versions by setting the output supression as a variable
  </notes>
  <contents>
    <dir name="/">
