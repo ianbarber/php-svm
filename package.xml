@@ -65,6 +65,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
         <file name="013_boolean_options.phpt" role="test" />
         <file name="014_predict_probability.phpt" role="test" />
         <file name="015_info_methods.phpt" role="test" />
+        <file name="016_file_stream:.phpt" role="test" />
         <file name="abalone.scale" role="test" />
         <file name="australian.scale" role="test" />
         <file name="baddata.scale" role="test" />
