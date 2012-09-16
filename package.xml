@@ -14,10 +14,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>ian.barber@gmail.co.uk</email>
   <active>yes</active>
  </lead>
- <date>2012-01-21</date>
- <time>19:30:00</time>
+ <date>2012-09-16</date>
+ <time>15:00:00</time>
  <version>
-  <release>0.1.7</release>
+  <release>0.1.8</release>
   <api>0.1.5</api>
  </version>
  <stability>
@@ -26,7 +26,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://www.php.net/license">PHP</license>
  <notes>
-	- Fixed support for older versions by setting the output supression as a variable
+	- Fixed GH#2 issue when loading data from a resource
+	- Modify include search path to start more generic
  </notes>
  <contents>
    <dir name="/">
