@@ -451,7 +451,7 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 		break;
 		
 		case IS_RESOURCE:
-			php_stream_from_zval(stream, &zparam);
+			php_stream_from_zval_no_verify(stream, &zparam);
 			our_stream = 0;
 		break;
 		
