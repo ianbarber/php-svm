@@ -290,7 +290,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	char *endptr;
 	int i, num_labels, elements;
 	int j = 0, max_index = 0, inst_max_index = 0;
-	long index;
+	unsigned long index;
 	struct svm_problem *problem;
 	
 	/* If reading multiple times make sure that we don't leak */
@@ -439,7 +439,7 @@ Take an incoming parameter and convert it into a PHP array of svmlight style dat
 */
 static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRMLS_DC) 
 {
-	zval *data, *return_value;
+	zval *data;
 	zend_bool our_stream = 0;
 	zend_bool need_read = 1;
 	php_stream *stream = NULL;
@@ -597,13 +597,13 @@ PHP_METHOD(svm, getOptions)
 	add_index_long(return_value, phpsvm_probability, intern->param.probability == 1 ? TRUE : FALSE);
 	add_index_long(return_value, phpsvm_shrinking, intern->param.shrinking == 1 ? TRUE : FALSE);
 	
-	add_index_long(return_value,  phpsvm_gamma, intern->param.gamma);
-	add_index_long(return_value,  phpsvm_coef0, intern->param.coef0);
-	add_index_long(return_value,  phpsvm_nu, intern->param.nu);
-	add_index_long(return_value,  phpsvm_cache_size, intern->param.cache_size);
-	add_index_long(return_value,  phpsvm_C, intern->param.C);
-	add_index_long(return_value,  phpsvm_eps, intern->param.eps);
-	add_index_long(return_value,  phpsvm_p, intern->param.p);
+	add_index_double(return_value,  phpsvm_gamma, intern->param.gamma);
+	add_index_double(return_value,  phpsvm_coef0, intern->param.coef0);
+	add_index_double(return_value,  phpsvm_nu, intern->param.nu);
+	add_index_double(return_value,  phpsvm_cache_size, intern->param.cache_size);
+	add_index_double(return_value,  phpsvm_C, intern->param.C);
+	add_index_double(return_value,  phpsvm_eps, intern->param.eps);
+	add_index_double(return_value,  phpsvm_p, intern->param.p);
 }
 /* }}} */
 
@@ -779,7 +779,7 @@ PHP_METHOD(svm, train)
 	HashTable *weights_ht;
 	int i;
 	char *key;
-	long index;
+	unsigned long index;
 	
 	zend_bool status = 0;
 	weights = 0;
