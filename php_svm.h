@@ -19,7 +19,7 @@
 # define _PHP_SVM_H_
 
 #define PHP_SVM_EXTNAME "svm"
-#define PHP_SVM_EXTVER  "0.1.9"
+#define PHP_SVM_EXTVER  "0.1.10"
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
