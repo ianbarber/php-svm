@@ -1,6 +1,6 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5 / svm                                                  |
+  | PHP Version 7 / svm                                                  |
   +----------------------------------------------------------------------+
   | Copyright (c) 2010 Ian Barber                                        |
   +----------------------------------------------------------------------+
@@ -29,11 +29,14 @@ static zend_class_entry *php_svm_exception_sc_entry;
 static zend_object_handlers svm_object_handlers;
 static zend_object_handlers svm_model_object_handlers;
 
+static int problemSize;
+
 #ifndef TRUE
 #       define TRUE 1
 #       define FALSE 0
 #endif
 
+#define SUCCESS 0
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
@@ -183,7 +186,7 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 		/* Read line by line */
 		if (php_stream_get_line(stream, buf, SVM_MAX_LINE_SIZE, &retlen)) {
 		
-			zval *line_array, *pz_label;
+			zval line_array, pz_label;
 			char *label, *ptr, *l = NULL;
 
 			ptr   = buf;
@@ -195,21 +198,20 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			}
 			
 			/* The line array */
-			MAKE_STD_ZVAL(line_array);
-			array_init(line_array);
+			//MAKE_STD_ZVAL(line_array);
+			array_init(&line_array);
 
 			/* The label */
-			MAKE_STD_ZVAL(pz_label);
-			ZVAL_STRING(pz_label, label, 1);
-			convert_to_double(pz_label);
+			ZVAL_STRING(&pz_label, label);
+			convert_to_double(&pz_label);
 
 			/* Label is the first item in the line array */
-			add_next_index_zval(line_array, pz_label);
+			add_next_index_zval(&line_array, &pz_label);
 			
 			/* Read rest of the values on the line */
 			while (1) {
 				char *idx, *value;
-				zval *pz_idx, *pz_value;
+				zval pz_idx, pz_value;
 				
 				/* idx:value format */
 				idx   = php_strtok_r(NULL, ":", &l);
@@ -220,19 +222,16 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 				}
 				
 				/* Make zvals and convert to correct types */
-				MAKE_STD_ZVAL(pz_idx);
-				ZVAL_STRING(pz_idx, idx, 1);
-				convert_to_long(pz_idx);
+				ZVAL_STRING(&pz_idx, idx);
+				convert_to_long(&pz_idx);
 				
-				MAKE_STD_ZVAL(pz_value);
-				ZVAL_STRING(pz_value, value, 1);
-				convert_to_double(pz_value);
+				ZVAL_STRING(&pz_value, value);
+				convert_to_double(&pz_value);
 				
-				add_index_zval(line_array, Z_LVAL_P(pz_idx), pz_value);
-				zval_dtor(pz_idx);
-				FREE_ZVAL(pz_idx);
+				add_index_zval(&line_array, Z_LVAL(pz_idx), &pz_value);
+				zval_dtor(&pz_idx);
 			}
-			add_next_index_zval(retval, line_array);
+			add_next_index_zval(retval, &line_array);
 			line++;
 		}
 	}
@@ -246,17 +245,16 @@ For a an array of arrays, count the number of items in all subarrays.
 */
 static int _php_count_values(zval *array)
 {
-	zval **ppzval;
 	int values = 0;
+	zval *val;
 
-	for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(array));
-		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
-		 zend_hash_move_forward(Z_ARRVAL_P(array))) {
-		
-		if (Z_TYPE_PP(ppzval) == IS_ARRAY) {
-			values += zend_hash_num_elements(Z_ARRVAL_PP(ppzval));
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), val) {
+		if (Z_TYPE_P(val) == IS_ARRAY) {
+			values += zend_hash_num_elements(Z_ARRVAL_P(val));
 		}
-	}
+	} ZEND_HASH_FOREACH_END();
+
+
 	return values;
 }
 /* }}} */
@@ -282,33 +280,50 @@ static void php_svm_free_problem(struct svm_problem *problem) {
 /* {{{ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array TSRMLS_DC)
 Take a PHP array, and prepare libSVM problem data for training with. 
 */
-static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array TSRMLS_DC)
+static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_model_object **intern_model_ptr, zval *array TSRMLS_DC, zval * rzval)
 {
-	zval **ppzval;
+	zval *pzval;
 	char *err_msg = NULL;
-	char *key;
+	zend_string *key;
 	char *endptr;
 	int i, num_labels, elements;
 	int j = 0, max_index = 0, inst_max_index = 0;
 	unsigned long index;
 	struct svm_problem *problem;
-	
-	/* If reading multiple times make sure that we don't leak */
-	if (intern_model->x_space) {
-		efree(intern_model->x_space);
-		intern_model->x_space = NULL;
+	//zval svm_mo;
+	zend_object * zobj;
+	php_svm_model_object * intern_model = NULL;
+
+	/* total number of elements */
+	elements = _php_count_values(array);
+
+	problemSize = elements;
+
+	if (intern_model)
+	{
+		/* If reading multiple times make sure that we don't leak */
+		if (intern_model->x_space) {
+			efree(intern_model->x_space);
+			intern_model->x_space = NULL;
+		}
+		if (intern_model->model) {
+			#if LIBSVM_VERSION >= 300
+				svm_free_and_destroy_model(&intern_model->model);
+			#else
+				svm_destroy_model(intern_model->model);
+			#endif
+		    
+			intern_model->model = NULL;
+		}
+	} else {
+		// create model object
+		object_init_ex(rzval, php_svm_model_sc_entry);
+
+		zobj = Z_OBJ_P(rzval);
+		intern_model = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));	
 	}
 	
-	if (intern_model->model) {
-		#if LIBSVM_VERSION >= 300
-			svm_free_and_destroy_model(&intern_model->model);
-		#else
-			svm_destroy_model(intern_model->model);
-		#endif
-	    
-		intern_model->model = NULL;
-	}
-	
+
 	/* Allocate the problem */
 	problem = emalloc(sizeof(struct svm_problem));
 	
@@ -321,64 +336,57 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	/* allocate space for x */
 	problem->x = emalloc(num_labels * sizeof(struct svm_node *));
 	
-	/* total number of elements */
-	elements = _php_count_values(array);
-	
-	/* Allocate space: because the original array contains labels the alloc
-		should match as we add additional -1 node in the loop */
-	intern_model->x_space = emalloc(elements * sizeof(struct svm_node));
 
 	/* How many labels */
 	problem->l = num_labels;
 
+	i = 0;
 	/* Fill the problem */
-	for (zend_hash_internal_pointer_reset(Z_ARRVAL_P(array)), i = 0;
-		 zend_hash_get_current_data(Z_ARRVAL_P(array), (void **) &ppzval) == SUCCESS;
-		 zend_hash_move_forward(Z_ARRVAL_P(array)), i++) {
+	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(array), pzval) {
+
+		zval *pz_label;
 	
-		zval **ppz_label;
-	
-		if (Z_TYPE_PP(ppzval) != IS_ARRAY) {
+		if (Z_TYPE_P(pzval) != IS_ARRAY) {
 			err_msg = "Data format error";
 			goto return_error;
 		}	
 						
-		if (zend_hash_num_elements(Z_ARRVAL_PP(ppzval)) < 2) {
+		if (zend_hash_num_elements(Z_ARRVAL_P(pzval)) < 2) {
 			err_msg = "Wrong amount of nodes in the sub-array";
 			goto return_error;
 		}
 		
-		problem->x[i] = &(intern_model->x_space[j]);
+		problem->x[i] = &intern_model->x_space[j];
 		
-		zend_hash_internal_pointer_reset(Z_ARRVAL_PP(ppzval));
+		zend_hash_internal_pointer_reset(Z_ARRVAL_P(pzval));
 		
-		if ((zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_label) == SUCCESS)) {
+		if ((pz_label = zend_hash_get_current_data_ex(Z_ARRVAL_P(pzval),  &(Z_ARRVAL_P(pzval))->nInternalPointer)) != NULL) {
 			
-			if (Z_TYPE_PP(ppz_label) != IS_DOUBLE) {
-				convert_to_double(*ppz_label);
+			if (Z_TYPE_P(pz_label) != IS_DOUBLE) {
+				convert_to_double(pz_label);
 			}
-			problem->y[i] = Z_DVAL_PP(ppz_label);
+			problem->y[i] = Z_DVAL_P(pz_label);
 		} else {
 			err_msg = "The sub-array contains only the label. Missing index-value pairs";
 			goto return_error;
 		}
-		
+
 		while (1) {
-			zval **ppz_value;
+			zval *pz_value;
 
-			if ((zend_hash_move_forward(Z_ARRVAL_PP(ppzval)) == SUCCESS) && 
-				(zend_hash_get_current_data(Z_ARRVAL_PP(ppzval), (void **) &ppz_value) == SUCCESS)) {						
+			if ((zend_hash_move_forward(Z_ARRVAL_P(pzval)) == SUCCESS) && 
+				((pz_value = zend_hash_get_current_data(Z_ARRVAL_P(pzval))) != NULL)) {						
 
-				if (zend_hash_get_current_key(Z_ARRVAL_PP(ppzval), &key, &index, 0) == HASH_KEY_IS_STRING) {
-					intern_model->x_space[j].index = (int) strtol(key, &endptr, 10);
+				if (zend_hash_get_current_key(Z_ARRVAL_P(pzval), &key, &index) == HASH_KEY_IS_STRING) {
+					intern_model->x_space[j].index = (int) strtol(ZSTR_VAL(key), &endptr, 10);
 				} else {
 					intern_model->x_space[j].index = (int) index;
 				}
 				
-				if (Z_TYPE_PP(ppz_value) != IS_DOUBLE) {
-					convert_to_double(*ppz_value);
+				if (Z_TYPE_P(pz_value) != IS_DOUBLE) {
+					convert_to_double(pz_value);
 				}
-				intern_model->x_space[j].value = Z_DVAL_PP(ppz_value);
+				intern_model->x_space[j].value = Z_DVAL_P(pz_value);
 			
 				inst_max_index = intern_model->x_space[j].index;
 				j++;
@@ -392,11 +400,14 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 		if (inst_max_index > max_index) {
 			max_index = inst_max_index;
 		}
-	}
+		i++;
+	} ZEND_HASH_FOREACH_END();
 	
 	if (intern->param.gamma == 0 && max_index > 0) {
 		intern->param.gamma = 1.0/max_index;
 	}
+
+	*intern_model_ptr = intern_model;
 	
 	return problem;
 	
@@ -437,21 +448,20 @@ static zend_bool php_svm_train(php_svm_object *intern, php_svm_model_object *int
 /* {{{ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam)
 Take an incoming parameter and convert it into a PHP array of svmlight style data.
 */
-static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRMLS_DC) 
+static int php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRMLS_DC, zval ** data_ptr) 
 {
-	zval *data;
 	zend_bool our_stream = 0;
 	zend_bool need_read = 1;
 	php_stream *stream = NULL;
 	
 	switch (Z_TYPE_P(zparam)) {		
 		case IS_STRING:
-			stream = php_stream_open_wrapper(Z_STRVAL_P(zparam), "r", ENFORCE_SAFE_MODE | REPORT_ERRORS, NULL);
+			stream = php_stream_open_wrapper(Z_STRVAL_P(zparam), "r", REPORT_ERRORS, NULL);
 			our_stream = 1;
 		break;
 		
 		case IS_RESOURCE:
-			php_stream_from_zval_no_verify(stream, &zparam);
+			php_stream_from_zval_no_verify(stream, zparam);
 			our_stream = 0;
 		break;
 		
@@ -472,13 +482,10 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 			snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "Failed to open the data file");
 			return FALSE;
 		}
-		
-		MAKE_STD_ZVAL(data);
-		array_init(data);
-		
-		if (!php_svm_stream_to_array(intern, stream, data TSRMLS_CC)) {
-			zval_dtor(data);
-			FREE_ZVAL(data);
+	
+		if (!php_svm_stream_to_array(intern, stream, *data_ptr TSRMLS_CC)) {
+			zval_dtor(*data_ptr);
+			efree(data_ptr);
 			if (our_stream) {
 				php_stream_close(stream);
 			}
@@ -486,14 +493,14 @@ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TS
 			return FALSE;
 		}
 	} else {
-		data = zparam;
+		*data_ptr = zparam;	
 	}
 	
 	if (our_stream) {
 		php_stream_close(stream);
 	}	
 	
-	return data;
+	return TRUE;
 }
 /* }}} */
 
@@ -503,15 +510,14 @@ Take an array of training data and turn it into an array of svm nodes.
 static struct svm_node* php_svm_get_data_from_array(zval* arr TSRMLS_DC) 
 {
 	struct svm_node *x;
-	zval **data;
 	HashTable *arr_hash;
-	HashPosition pointer;
 	int array_count, i;
 	char *endptr;
 	zval temp;
-	char *key;
+	zend_string *key;
 	uint key_len;
-	ulong index;
+	ulong num_key;
+	zval *val;
 	
 	arr_hash = Z_ARRVAL_P(arr);
 	array_count = zend_hash_num_elements(arr_hash);
@@ -521,22 +527,21 @@ static struct svm_node* php_svm_get_data_from_array(zval* arr TSRMLS_DC)
 	i = 0;
 	
 	/* Loop over the array in the argument and convert into svm_nodes for the prediction */
-	for(zend_hash_internal_pointer_reset_ex(arr_hash, &pointer);
-		zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; 
-		zend_hash_move_forward_ex(arr_hash, &pointer)) 
+	ZEND_HASH_FOREACH_KEY_VAL(arr_hash, num_key, key, val) 
 	{
-		if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_STRING) {
-			x[i].index = (int) strtol(key, &endptr, 10);
+		if (key) {
+			x[i].index = (int) strtol(ZSTR_VAL(key), &endptr, 10);
 		} else {
-			x[i].index = (int) index;
+			x[i].index = (int) num_key;
 		} 
-		temp = **data;
+		temp = *val;
 		zval_copy_ctor(&temp);
 		convert_to_double(&temp);
 		x[i].value = Z_DVAL(temp);
 		zval_dtor(&temp);
 		i++;
-	}
+	} ZEND_HASH_FOREACH_END();
+
 	/* needed so the predictor knows when to end */
 	x[i].index = -1;
 	
@@ -555,12 +560,16 @@ The constructor
 PHP_METHOD(svm, __construct)
 {
 	php_svm_object *intern;
+	zend_object * zobj;
+
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
         SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
-	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	//intern = (php_svm_object *) Z_OBJ_P(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	/* Setup the default parameters to match those in libsvm's svm_train */
 	php_svm_set_long_attribute(intern, phpsvm_svm_type, C_SVC);
@@ -575,7 +584,6 @@ PHP_METHOD(svm, __construct)
 	php_svm_set_double_attribute(intern, phpsvm_p, 0.1);
 	php_svm_set_bool_attribute(intern, phpsvm_shrinking, TRUE);
 	php_svm_set_bool_attribute(intern, phpsvm_probability, FALSE);
-	
 	return;
 }
 /* }}} */
@@ -586,7 +594,10 @@ Get training parameters, in an array.
 PHP_METHOD(svm, getOptions) 
 {
 	php_svm_object *intern;
-	intern = zend_object_store_get_object(getThis() TSRMLS_CC);
+	zend_object * zobj;
+
+	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	array_init(return_value); 
 	
@@ -616,9 +627,11 @@ PHP_METHOD(svm, setOptions)
 {
 	HashTable *params_ht;
 	php_svm_object *intern;
-	zval *params, **ppzval;
-	char *string_key = NULL;
+	zval *params, *pzval;
+	zend_string *string_key = NULL;
 	ulong num_key;
+	zend_object * zobj;
+	zend_bool boolTmp;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &params) == FAILURE) {
 		RETURN_FALSE;
@@ -630,20 +643,21 @@ PHP_METHOD(svm, setOptions)
 		return;
 	}
 	
-	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	for (zend_hash_internal_pointer_reset(params_ht);
-		 zend_hash_get_current_data(params_ht, (void **) &ppzval) == SUCCESS;
+		 (pzval = zend_hash_get_current_data(params_ht)) != NULL;
 		 zend_hash_move_forward(params_ht)) {
 		
 		zval tmp_zval, *tmp_pzval;
 		
-		if (zend_hash_get_current_key(params_ht, &string_key, &num_key, 1) != HASH_KEY_IS_LONG) {
+		if (zend_hash_get_current_key(params_ht, &string_key, &num_key) != HASH_KEY_IS_LONG) {
 			continue; /* Ignore the arg (TODO: throw exception?) */
 		}
 		
 		/* Make sure we don't modify the original array */
-		tmp_zval = **ppzval;
+		tmp_zval = *pzval;
 		zval_copy_ctor(&tmp_zval);
 		tmp_pzval = &tmp_zval;
 		
@@ -671,11 +685,16 @@ PHP_METHOD(svm, setOptions)
 		/* Bool attribute */
 		} else if(num_key > SvmBoolAttributeMin && num_key < SvmBoolAttributeMax) {
 			
-			if (Z_TYPE_P(tmp_pzval) != IS_BOOL) {
+			if ((Z_TYPE_P(tmp_pzval) != IS_TRUE) && (Z_TYPE_P(tmp_pzval) != IS_FALSE)) {
 				convert_to_boolean(tmp_pzval);
 			}
+
+			boolTmp = FALSE;
+			if(Z_TYPE_P(tmp_pzval) == IS_TRUE) {
+				boolTmp = TRUE;
+			}
 			
-			if (!php_svm_set_bool_attribute(intern, num_key, Z_BVAL_P(tmp_pzval))) {
+			if (!php_svm_set_bool_attribute(intern, num_key, boolTmp)) {
 				SVM_THROW("Failed to set the attribute", 999);
 			}
 		} else {
@@ -707,24 +726,28 @@ PHP_METHOD(svm, crossvalidate)
 	double returnval = 0.0;
 	double *target;
 	php_svm_object *intern;
-	php_svm_model_object *intern_return;
-	zval *zparam, *data, *tempobj;
+	php_svm_model_object *intern_return = NULL;
+	zval *zparam, data;
+	zend_object * zobj;
+	zval * data_p = &data;
+
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &zparam, &nrfolds) == FAILURE) {
 		return;
 	}
 
-	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
-	ALLOC_INIT_ZVAL(tempobj);
-	object_init_ex(tempobj, php_svm_model_sc_entry);
-	intern_return = (php_svm_model_object *)zend_object_store_get_object(tempobj TSRMLS_CC);
-	
-	data = php_svm_get_data_from_param(intern, zparam TSRMLS_CC);
-	if(!data) {
+	array_init(data_p);
+	int ret = php_svm_get_data_from_param(intern, zparam TSRMLS_CC, &data_p);
+	if(ret != TRUE) {
 		SVM_THROW_LAST_ERROR("Could not load data", 234);
 	}
-	problem = php_svm_read_array(intern, intern_return, data TSRMLS_CC);
+
+   	intern->param.nr_weight = 0;
+	
+	problem = php_svm_read_array(intern, &intern_return, data_p TSRMLS_CC, return_value);
 	if(!problem) {
 		SVM_THROW_LAST_ERROR("Cross validation failed", 1001);
 	}
@@ -752,12 +775,9 @@ PHP_METHOD(svm, crossvalidate)
 		returnval = 1.0*total_correct/problem->l;
 	}
 	
-	if (data != zparam) {
-		zval_dtor(data);
-		FREE_ZVAL(data);
+	if (data_p != zparam) {
+		zval_dtor(data_p);
 	}
-	zval_dtor(tempobj);
-	FREE_ZVAL(tempobj);
 	efree(target);
 	php_svm_free_problem(problem);
 	
@@ -773,14 +793,20 @@ be used to multiply C. Only useful for C_SVC kernels. These should be in the for
 PHP_METHOD(svm, train)
 {
 	php_svm_object *intern;
-	php_svm_model_object *intern_return;
+	php_svm_model_object *intern_return = NULL;
 	struct svm_problem *problem;
-	zval *data, *zparam, *weights, **ppzval;
+	zval data;
+	zval *zparam;
+	zval *weights;
+	zval *pzval;
+	zval return_zval;
 	HashTable *weights_ht;
+	zend_object *zobj;
 	int i;
-	char *key;
+	zend_string *key;
 	unsigned long index;
-	
+	zval * data_p = &data;
+
 	zend_bool status = 0;
 	weights = 0;
 
@@ -788,13 +814,16 @@ PHP_METHOD(svm, train)
 		return;
 	}
 
-	intern = (php_svm_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+
 	if(weights && intern->param.svm_type != C_SVC) {
-		SVM_THROW("Weights can only be supplied for C_SVC training", 424);
+		SVM_THROW("Weights can only be supplied for C_SyVC training", 424);
 	}
-	
-	data = php_svm_get_data_from_param(intern, zparam TSRMLS_CC);
-	if(!data) {
+	array_init(data_p);
+	int ret = php_svm_get_data_from_param(intern, zparam TSRMLS_CC, &data_p);
+	if(ret != TRUE) {
+		zval_dtor(data_p);
 		SVM_THROW_LAST_ERROR("Could not load data", 234);
 	}
 	
@@ -806,16 +835,16 @@ PHP_METHOD(svm, train)
 			intern->param.weight = emalloc(intern->param.nr_weight * sizeof(double));
 		
 			for (zend_hash_internal_pointer_reset(weights_ht), i = 0;
-				 zend_hash_get_current_data(weights_ht, (void **) &ppzval) == SUCCESS;
+				 (pzval = zend_hash_get_current_data(weights_ht)) != NULL;
 				 zend_hash_move_forward(weights_ht), i++) {
 
 				zval tmp_zval, *tmp_pzval;
 
-				if (zend_hash_get_current_key(weights_ht, &key, &index, 0) == HASH_KEY_IS_LONG) {
+				if (zend_hash_get_current_key(weights_ht, &key, &index) == HASH_KEY_IS_LONG) {
 					intern->param.weight_label[i] = (int)index;	
 				
 					/* Make sure we don't modify the original array */
-					tmp_zval = **ppzval;
+					tmp_zval = *pzval;
 					zval_copy_ctor(&tmp_zval);
 					tmp_pzval = &tmp_zval;
 					convert_to_double(tmp_pzval);
@@ -828,11 +857,9 @@ PHP_METHOD(svm, train)
         intern->param.nr_weight = 0;
 	}
 
-	/* Return an object */
-	object_init_ex(return_value, php_svm_model_sc_entry);
-	intern_return = (php_svm_model_object *)zend_object_store_get_object(return_value TSRMLS_CC);
+	problem = php_svm_read_array(intern, &intern_return, data_p TSRMLS_CC, return_value);
 
-	problem = php_svm_read_array(intern, intern_return, data TSRMLS_CC);
+
 	if(problem != NULL) {
 		if (php_svm_train(intern, intern_return, problem)) {
 			status = 1;
@@ -845,10 +872,8 @@ PHP_METHOD(svm, train)
 		efree(intern->param.weight);
 	}
 	
-	if (data != zparam) {
-		zval_dtor(data);
-		FREE_ZVAL(data);
-	}
+	zval_dtor(&data);
+	
 	
 	if (!status) {
 		SVM_THROW_LAST_ERROR("Training failed", 1000);
@@ -868,7 +893,7 @@ PHP_METHOD(svmmodel, __construct)
 {
 	php_svm_model_object *intern;
 	char *filename = NULL;
-	int filename_len;
+	size_t filename_len;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s!", &filename, &filename_len) == FAILURE) {
 		SVM_THROW("Invalid parameters passed to constructor", 154);
@@ -878,7 +903,7 @@ PHP_METHOD(svmmodel, __construct)
 		return;
 	}
 
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	intern = (php_svm_model_object *)Z_OBJ_P(getThis() TSRMLS_CC);
 	intern->model = svm_load_model(filename);
 	
 	if (!intern->model) {
@@ -896,13 +921,15 @@ PHP_METHOD(svmmodel, load)
 {
 	php_svm_model_object *intern;
 	char *filename = NULL;
-	int filename_len;
+	size_t filename_len;
+	zend_object * zobj;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
 
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	intern->model = svm_load_model(filename);
 	
 	if (!intern->model) {
@@ -920,13 +947,15 @@ PHP_METHOD(svmmodel, save)
 {
 	php_svm_model_object *intern;
 	char *filename;
-	int filename_len;
+	zend_object *zobj;
+	size_t filename_len;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
-	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	
 	if (!intern->model) {
 		SVM_THROW("The object does not contain a model", 2321);
@@ -948,8 +977,10 @@ PHP_METHOD(svmmodel, getSvmType)
 {
 	php_svm_model_object *intern;
 	int svm_type;
+	zend_object *zobj;
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -968,8 +999,10 @@ PHP_METHOD(svmmodel, getNrClass)
 {
 	php_svm_model_object *intern;
 	int nr_classes;
+	zend_object * zobj;
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -989,8 +1022,10 @@ PHP_METHOD(svmmodel, getLabels)
 	int nr_classes;
 	int* labels;
 	int i;
+	zend_object * zobj;
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1015,9 +1050,11 @@ PHP_METHOD(svmmodel, getLabels)
 PHP_METHOD(svmmodel, checkProbabilityModel)
 {
 	php_svm_model_object *intern;
+	zend_object * zobj;
 	int prob;
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1036,8 +1073,10 @@ PHP_METHOD(svmmodel, getSvrProbability)
 {
 	php_svm_model_object *intern;
 	double svr_prob;
+	zend_object * zobj;
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1056,13 +1095,15 @@ PHP_METHOD(svmmodel, predict)
 	double predict_label;
 	struct svm_node *x;
 	zval *arr;
+	zend_object * zobj;
 
 	/* we want an array of data to be passed in */
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
 	    return;
 	}
 	
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -1090,13 +1131,15 @@ PHP_METHOD(svmmodel, predict_probability)
 	int *labels;
 	zval *arr; 
 	zval *retarr = NULL;
+	zend_object * zobj;
 	
 	/* we want an array of data to be passed in */
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "az", &arr, &retarr) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "az/", &arr, &retarr) == FAILURE) {
 	    return;
 	}
 
-	intern = (php_svm_model_object *)zend_object_store_get_object(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
+	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -1126,27 +1169,26 @@ PHP_METHOD(svmmodel, predict_probability)
 
 /* ---- END SVMMODEL ---- */
 
-static void php_svm_object_free_storage(void *object TSRMLS_DC)
+static void php_svm_object_free_storage(zend_object *object TSRMLS_DC)
 {
-	php_svm_object *intern = (php_svm_object *)object;
+	php_svm_object *intern;
+
+	intern = (php_svm_object *)((char *)object - XtOffsetOf(php_svm_object, zo));
 
 	if (!intern) {
 		return;
 	}
 
 	zend_object_std_dtor(&intern->zo TSRMLS_CC);
-	efree(intern);
 }
 
-static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr TSRMLS_DC)
+static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr TSRMLS_DC)
 {
 	zval *tmp;
-	zend_object_value retval;
 	php_svm_object *intern;
 
 	/* Allocate memory for the internal structure */
-	intern = (php_svm_object *) emalloc(sizeof(php_svm_object));
-	memset(&intern->zo, 0, sizeof(zend_object));
+	intern = (php_svm_object *) ecalloc(1, sizeof(php_svm_object) + zend_object_properties_size(class_type));
 
 	if (ptr) {
 		*ptr = intern;
@@ -1156,24 +1198,22 @@ static zend_object_value php_svm_object_new_ex(zend_class_entry *class_type, php
 	memset(intern->last_error, 0, 512);
 
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
-#if PHP_VERSION_ID < 50399
-	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
-#else
 	object_properties_init(&intern->zo, class_type);
-#endif
-	retval.handle = zend_objects_store_put(intern, NULL, (zend_objects_free_object_storage_t) php_svm_object_free_storage, NULL TSRMLS_CC);
-	retval.handlers = (zend_object_handlers *) &svm_object_handlers;
-	return retval;
+    intern->zo.handlers = &svm_object_handlers;
+
+    return &intern->zo;
 }
 
-static zend_object_value php_svm_object_new(zend_class_entry *class_type TSRMLS_DC)
+static zend_object * php_svm_object_new(zend_class_entry *class_type TSRMLS_DC)
 {
 	return php_svm_object_new_ex(class_type, NULL TSRMLS_CC);
 }
 
-static void php_svm_model_object_free_storage(void *object TSRMLS_DC)
+static void php_svm_model_object_free_storage(zend_object *object TSRMLS_DC)
 {
-	php_svm_model_object *intern = (php_svm_model_object *)object;
+	php_svm_model_object *intern;
+
+	intern = (php_svm_model_object *)((char *)object - XtOffsetOf(php_svm_model_object, zo));
 
 	if (!intern) {
 		return;
@@ -1186,6 +1226,7 @@ static void php_svm_model_object_free_storage(void *object TSRMLS_DC)
 			svm_destroy_model(intern->model);
 		#endif
 	    
+	    efree(intern->model);
 		intern->model = NULL;
 	}	
 	
@@ -1195,39 +1236,35 @@ static void php_svm_model_object_free_storage(void *object TSRMLS_DC)
 	}
 
 	zend_object_std_dtor(&intern->zo TSRMLS_CC);
-	efree(intern);
 }
 
-static zend_object_value php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr TSRMLS_DC)
+
+static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr TSRMLS_DC)
 {
-	zval *tmp;
-	zend_object_value retval;
+	//zend_object_value retval;
 	php_svm_model_object *intern;
 
 	/* Allocate memory for the internal structure */
-	intern = (php_svm_model_object *) emalloc(sizeof(php_svm_object));
-	memset(&intern->zo, 0, sizeof(zend_object));
+	intern = (php_svm_model_object *) ecalloc(1, sizeof(php_svm_model_object)  + zend_object_properties_size(class_type));
 
 	if (ptr) {
 		*ptr = intern;
 	}
-	
-	/* Null model by default */
+
+	intern->x_space = emalloc(problemSize * sizeof(struct svm_node));
 	intern->model = NULL;
-	intern->x_space = NULL;
 	
 	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
-#if PHP_VERSION_ID < 50399
-	zend_hash_copy(intern->zo.properties, &class_type->default_properties, (copy_ctor_func_t) zval_add_ref,(void *) &tmp, sizeof(zval *));
-#else
+
 	object_properties_init(&intern->zo, class_type);
-#endif
-	retval.handle = zend_objects_store_put(intern, NULL, (zend_objects_free_object_storage_t) php_svm_model_object_free_storage, NULL TSRMLS_CC);
-	retval.handlers = (zend_object_handlers *) &svm_model_object_handlers;
-	return retval;
+ 
+    intern->zo.handlers = &svm_model_object_handlers;
+
+    return &intern->zo;
 }
 
-static zend_object_value php_svm_model_object_new(zend_class_entry *class_type TSRMLS_DC)
+
+static zend_object * php_svm_model_object_new(zend_class_entry *class_type TSRMLS_DC)
 {
 	return php_svm_model_object_new_ex(class_type, NULL TSRMLS_CC);
 }
@@ -1267,6 +1304,11 @@ ZEND_BEGIN_ARG_INFO_EX(svm_model_predict_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(svm_model_predict_probs_args, 0, 0, 1)
+	ZEND_ARG_INFO(0, data)
+	ZEND_ARG_INFO(1, probabilities)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(svm_model_file_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
@@ -1285,7 +1327,7 @@ static zend_function_entry php_svm_model_class_methods[] =
 	PHP_ME(svmmodel, getSvrProbability,	svm_model_info_args,	ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, checkProbabilityModel,	svm_model_info_args,	ZEND_ACC_PUBLIC)	
 	PHP_ME(svmmodel, predict, 		svm_model_predict_args, ZEND_ACC_PUBLIC)
-	PHP_ME(svmmodel, predict_probability,	svm_model_predict_args, ZEND_ACC_PUBLIC)
+	PHP_ME(svmmodel, predict_probability,	svm_model_predict_probs_args, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
 };
 
@@ -1293,20 +1335,23 @@ PHP_MINIT_FUNCTION(svm)
 {
 	zend_class_entry ce;
 	memcpy(&svm_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	svm_object_handlers.free_obj = php_svm_object_free_storage;
+	svm_object_handlers.offset = XtOffsetOf(php_svm_object, zo);
+
 	memcpy(&svm_model_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	svm_model_object_handlers.free_obj = php_svm_model_object_free_storage;
+	svm_model_object_handlers.offset   = XtOffsetOf(php_svm_model_object, zo);
 
 	INIT_CLASS_ENTRY(ce, "svm", php_svm_class_methods);
 	ce.create_object = php_svm_object_new;
-	svm_object_handlers.clone_obj = NULL;
 	php_svm_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "svmmodel", php_svm_model_class_methods);
 	ce.create_object = php_svm_model_object_new;
-	svm_model_object_handlers.clone_obj = NULL;
 	php_svm_model_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
 
 	INIT_CLASS_ENTRY(ce, "svmexception", NULL);
-	php_svm_exception_sc_entry = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
+	php_svm_exception_sc_entry = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C));
 	php_svm_exception_sc_entry->ce_flags |= ZEND_ACC_FINAL;
 	
 	/* Redirect the lib svm output */
