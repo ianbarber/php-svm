@@ -40,12 +40,12 @@ static int problemSize;
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
-		zend_throw_exception(php_svm_exception_sc_entry, message, (long)code); \
+		zend_throw_exception(php_svm_exception_sc_entry, message, code); \
 		return;
 
 #define SVM_ERROR_MSG_SIZE 512			
 #define SVM_THROW_LAST_ERROR(fallback, code) \
-		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), (long)code); \
+		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), code); \
 		memset(intern->last_error, 0, SVM_ERROR_MSG_SIZE); \
 		return;			
 
@@ -1362,7 +1362,7 @@ PHP_MINIT_FUNCTION(svm)
 	#endif
 
         #define SVM_REGISTER_CONST_LONG(const_name, value) \
-	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, (long)value);	
+	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, value);	
 
 	/* SVM types */
 	SVM_REGISTER_CONST_LONG("C_SVC", C_SVC);
