@@ -46,22 +46,30 @@ dnl Get PHP version depending on shared/static build
   fi
   
   if test "$SVM_OK" != "1"; then
-    AC_MSG_ERROR([Unable to find svm.h])
+    PHP_REQUIRE_CXX()
+    PHP_ADD_LIBRARY(stdc++,,SVM_SHARED_LIBADD)
+
+    PHP_NEW_EXTENSION(svm, svm.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, cxx)
+    PHP_ADD_SOURCES_X(PHP_EXT_DIR(svm), libsvm/svm.cpp, -std=c++14, shared_objects_svm, yes)
+
+    PHP_ADD_INCLUDE($ext_srcdir/libsvm)
+    PHP_ADD_INCLUDE($ext_builddir/libsvm)
+  else
+  
+    AC_MSG_RESULT([found in $SVM_INC_DIR])
+  
+    AC_MSG_CHECKING([for libsvm shared libraries])
+    PHP_CHECK_LIBRARY(svm, svm_train, [
+      PHP_ADD_LIBRARY_WITH_PATH(svm, $SVM_PREFIX/lib, SVM_SHARED_LIBADD)
+      PHP_ADD_INCLUDE($SVM_INC_DIR)
+    ],[
+      AC_MSG_ERROR([not found. Make sure that libsvm is installed])
+    ],[
+      SVM_SHARED_LIBADD -lsvm
+    ])
+  
+    PHP_NEW_EXTENSION(svm, svm.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1)
   fi
-  
-  AC_MSG_RESULT([found in $SVM_INC_DIR])
-  
-  AC_MSG_CHECKING([for libsvm shared libraries])
-  PHP_CHECK_LIBRARY(svm, svm_train, [
-    PHP_ADD_LIBRARY_WITH_PATH(svm, $SVM_PREFIX/lib, SVM_SHARED_LIBADD)
-    PHP_ADD_INCLUDE($SVM_INC_DIR)
-  ],[
-    AC_MSG_ERROR([not found. Make sure that libsvm is installed])
-  ],[
-    SVM_SHARED_LIBADD -lsvm
-  ])
-  
-  PHP_NEW_EXTENSION(svm, svm.c, $ext_shared)
   AC_DEFINE(HAVE_SVM,1,[ ])
 
   PHP_SUBST(SVM_SHARED_LIBADD)

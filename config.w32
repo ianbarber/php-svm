@@ -1,11 +1,14 @@
 ARG_WITH("svm", "whether to enable svm support", "no");
 
 if (PHP_SVM != "no") {
-
 	if (CHECK_HEADER_ADD_INCLUDE("svm.h", "CFLAGS_SVM", PHP_PHP_BUILD + "\\include\\libsvm;" + PHP_SVM)
         && CHECK_LIB("libsvm.lib", "svm", PHP_PHP_BUILD + "\\lib;" + PHP_SVM))
 	{
-		EXTENSION('svm', 'svm.c');
+		EXTENSION('svm', 'svm.c', PHP_SVM_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /EHsc");
+		AC_DEFINE('HAVE_SVM', 1);
+	} else if (CHECK_HEADER_ADD_INCLUDE("svm.h", "CFLAGS_SVM", configure_module_dirname + "\\libsvm")) {
+		EXTENSION('svm', 'svm.c', PHP_SVM_SHARED, "/DZEND_ENABLE_STATIC_TSRMLS_CACHE=1 /EHsc -std:c++14");
+		ADD_SOURCES(configure_module_dirname, "libsvm\\svm.cpp", "svm");
 		AC_DEFINE('HAVE_SVM', 1);
 	} else {
 		WARNING("SVM not enabled; libraries and headers not found");
