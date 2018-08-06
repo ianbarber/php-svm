@@ -515,7 +515,6 @@ static struct svm_node* php_svm_get_data_from_array(zval* arr)
 	char *endptr;
 	zval temp;
 	zend_string *key;
-	uint key_len;
 	zend_ulong num_key;
 	zval *val;
 	
@@ -799,7 +798,6 @@ PHP_METHOD(svm, train)
 	zval *zparam;
 	zval *weights;
 	zval *pzval;
-	zval return_zval;
 	HashTable *weights_ht;
 	zend_object *zobj;
 	int i;
@@ -1184,7 +1182,6 @@ static void php_svm_object_free_storage(zend_object *object)
 
 static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr)
 {
-	zval *tmp;
 	php_svm_object *intern;
 
 	/* Allocate memory for the internal structure */
