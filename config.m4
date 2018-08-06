@@ -46,6 +46,8 @@ dnl Get PHP version depending on shared/static build
   fi
   
   if test "$SVM_OK" != "1"; then
+    AC_MSG_RESULT([not found, using bundled libsvm])
+
     PHP_REQUIRE_CXX()
     PHP_ADD_LIBRARY(stdc++,,SVM_SHARED_LIBADD)
 
