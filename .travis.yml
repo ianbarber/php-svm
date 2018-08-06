@@ -1,0 +1,29 @@
+sudo: false
+language: php
+dist: trusty
+
+php:
+        - 7.0
+        - 7.1
+        - 7.2
+        - nightly
+
+matrix:
+        allow_failures:
+                - php: nightly
+
+addons:
+        apt:
+                packages:
+                        - libsvm-dev
+
+before_script:
+        - phpize
+        - ./configure
+        - make
+        - make install
+        - echo "extension=svm.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+
+script:
+        - REPORT_EXIT_STATUS=1 php ./run-tests.php -P -q --show-diff
+
