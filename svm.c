@@ -135,7 +135,7 @@ static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleA
 	return TRUE;
 }
 
-static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttribute name, long value) 
+static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttribute name, zend_long value) 
 {
 	if (name >= SvmLongAttributeMax) {
 		return FALSE;
@@ -288,7 +288,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	char *endptr;
 	int i, num_labels, elements;
 	int j = 0, max_index = 0, inst_max_index = 0;
-	unsigned long index;
+	zend_ulong index;
 	struct svm_problem *problem;
 	//zval svm_mo;
 	zend_object * zobj;
@@ -516,7 +516,7 @@ static struct svm_node* php_svm_get_data_from_array(zval* arr)
 	zval temp;
 	zend_string *key;
 	uint key_len;
-	ulong num_key;
+	zend_ulong num_key;
 	zval *val;
 	
 	arr_hash = Z_ARRVAL_P(arr);
@@ -629,7 +629,7 @@ PHP_METHOD(svm, setOptions)
 	php_svm_object *intern;
 	zval *params, *pzval;
 	zend_string *string_key = NULL;
-	ulong num_key;
+	zend_ulong num_key;
 	zend_object * zobj;
 	zend_bool boolTmp;
 	
@@ -804,7 +804,7 @@ PHP_METHOD(svm, train)
 	zend_object *zobj;
 	int i;
 	zend_string *key;
-	unsigned long index;
+	zend_ulong index;
 	zval * data_p = &data;
 
 	zend_bool status = 0;
