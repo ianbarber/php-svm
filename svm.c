@@ -40,12 +40,12 @@ static int problemSize;
 
 #define SVM_MAX_LINE_SIZE 4096
 #define SVM_THROW(message, code) \
-		zend_throw_exception(php_svm_exception_sc_entry, message, (long)code TSRMLS_CC); \
+		zend_throw_exception(php_svm_exception_sc_entry, message, (long)code); \
 		return;
 
 #define SVM_ERROR_MSG_SIZE 512			
 #define SVM_THROW_LAST_ERROR(fallback, code) \
-		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), (long)code TSRMLS_CC); \
+		zend_throw_exception(php_svm_exception_sc_entry, (strlen(intern->last_error) ? intern->last_error : fallback), (long)code); \
 		memset(intern->last_error, 0, SVM_ERROR_MSG_SIZE); \
 		return;			
 
@@ -172,11 +172,11 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 	return TRUE;
 }
 
-/** {{{ zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval TSRMLS_DC)
+/** {{{ zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval)
 	Take a stream containing lines of SVMLight format data and convert them into a PHP array for use by the training
 	function.
 */
-static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval TSRMLS_DC)
+static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval)
 {
 	while (!php_stream_eof(stream)) {
 		char buf[SVM_MAX_LINE_SIZE];
@@ -277,10 +277,10 @@ static void php_svm_free_problem(struct svm_problem *problem) {
 }
 /* }}} */
 
-/* {{{ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array TSRMLS_DC)
+/* {{{ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array)
 Take a PHP array, and prepare libSVM problem data for training with. 
 */
-static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_model_object **intern_model_ptr, zval *array TSRMLS_DC, zval * rzval)
+static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_model_object **intern_model_ptr, zval *array, zval * rzval)
 {
 	zval *pzval;
 	char *err_msg = NULL;
@@ -448,7 +448,7 @@ static zend_bool php_svm_train(php_svm_object *intern, php_svm_model_object *int
 /* {{{ static zval* php_svm_get_data_from_param(php_svm_object *intern, zval *zparam)
 Take an incoming parameter and convert it into a PHP array of svmlight style data.
 */
-static int php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRMLS_DC, zval ** data_ptr) 
+static int php_svm_get_data_from_param(php_svm_object *intern, zval *zparam, zval ** data_ptr) 
 {
 	zend_bool our_stream = 0;
 	zend_bool need_read = 1;
@@ -483,7 +483,7 @@ static int php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRM
 			return FALSE;
 		}
 	
-		if (!php_svm_stream_to_array(intern, stream, *data_ptr TSRMLS_CC)) {
+		if (!php_svm_stream_to_array(intern, stream, *data_ptr)) {
 			zval_dtor(*data_ptr);
 			efree(data_ptr);
 			if (our_stream) {
@@ -507,7 +507,7 @@ static int php_svm_get_data_from_param(php_svm_object *intern, zval *zparam TSRM
 /* {{{ static svm_node* php_svm_get_data_from_array(zval *arr)
 Take an array of training data and turn it into an array of svm nodes.
 */
-static struct svm_node* php_svm_get_data_from_array(zval* arr TSRMLS_DC) 
+static struct svm_node* php_svm_get_data_from_array(zval* arr) 
 {
 	struct svm_node *x;
 	HashTable *arr_hash;
@@ -563,12 +563,12 @@ PHP_METHOD(svm, __construct)
 	zend_object * zobj;
 
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "") == FAILURE) {
         SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
-	//intern = (php_svm_object *) Z_OBJ_P(getThis() TSRMLS_CC);
-	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	//intern = (php_svm_object *) Z_OBJ_P(getThis());
+	zobj = Z_OBJ_P(getThis());
 	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	/* Setup the default parameters to match those in libsvm's svm_train */
@@ -596,7 +596,7 @@ PHP_METHOD(svm, getOptions)
 	php_svm_object *intern;
 	zend_object * zobj;
 
-	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
 	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	array_init(return_value); 
@@ -633,7 +633,7 @@ PHP_METHOD(svm, setOptions)
 	zend_object * zobj;
 	zend_bool boolTmp;
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &params) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &params) == FAILURE) {
 		RETURN_FALSE;
 	}
 	
@@ -643,7 +643,7 @@ PHP_METHOD(svm, setOptions)
 		return;
 	}
 	
-	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
 	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	for (zend_hash_internal_pointer_reset(params_ht);
@@ -732,22 +732,22 @@ PHP_METHOD(svm, crossvalidate)
 	zval * data_p = &data;
 
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &zparam, &nrfolds) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zl", &zparam, &nrfolds) == FAILURE) {
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
 	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 	
 	array_init(data_p);
-	int ret = php_svm_get_data_from_param(intern, zparam TSRMLS_CC, &data_p);
+	int ret = php_svm_get_data_from_param(intern, zparam, &data_p);
 	if(ret != TRUE) {
 		SVM_THROW_LAST_ERROR("Could not load data", 234);
 	}
 
    	intern->param.nr_weight = 0;
 	
-	problem = php_svm_read_array(intern, &intern_return, data_p TSRMLS_CC, return_value);
+	problem = php_svm_read_array(intern, &intern_return, data_p, return_value);
 	if(!problem) {
 		SVM_THROW_LAST_ERROR("Cross validation failed", 1001);
 	}
@@ -810,18 +810,18 @@ PHP_METHOD(svm, train)
 	zend_bool status = 0;
 	weights = 0;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|a!", &zparam, &weights) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|a!", &zparam, &weights) == FAILURE) {
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis() TSRMLS_CC);
+	zobj = Z_OBJ_P(getThis());
 	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
 
 	if(weights && intern->param.svm_type != C_SVC) {
 		SVM_THROW("Weights can only be supplied for C_SyVC training", 424);
 	}
 	array_init(data_p);
-	int ret = php_svm_get_data_from_param(intern, zparam TSRMLS_CC, &data_p);
+	int ret = php_svm_get_data_from_param(intern, zparam, &data_p);
 	if(ret != TRUE) {
 		zval_dtor(data_p);
 		SVM_THROW_LAST_ERROR("Could not load data", 234);
@@ -857,7 +857,7 @@ PHP_METHOD(svm, train)
         intern->param.nr_weight = 0;
 	}
 
-	problem = php_svm_read_array(intern, &intern_return, data_p TSRMLS_CC, return_value);
+	problem = php_svm_read_array(intern, &intern_return, data_p, return_value);
 
 
 	if(problem != NULL) {
@@ -895,7 +895,7 @@ PHP_METHOD(svmmodel, __construct)
 	char *filename = NULL;
 	size_t filename_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s!", &filename, &filename_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "|s!", &filename, &filename_len) == FAILURE) {
 		SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
@@ -903,7 +903,7 @@ PHP_METHOD(svmmodel, __construct)
 		return;
 	}
 
-	intern = (php_svm_model_object *)Z_OBJ_P(getThis() TSRMLS_CC);
+	intern = (php_svm_model_object *)Z_OBJ_P(getThis());
 	intern->model = svm_load_model(filename);
 	
 	if (!intern->model) {
@@ -924,7 +924,7 @@ PHP_METHOD(svmmodel, load)
 	size_t filename_len;
 	zend_object * zobj;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
 
@@ -950,7 +950,7 @@ PHP_METHOD(svmmodel, save)
 	zend_object *zobj;
 	size_t filename_len;
 	
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &filename, &filename_len) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
 
@@ -1098,7 +1098,7 @@ PHP_METHOD(svmmodel, predict)
 	zend_object * zobj;
 
 	/* we want an array of data to be passed in */
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "a", &arr) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
 	    return;
 	}
 	
@@ -1108,7 +1108,7 @@ PHP_METHOD(svmmodel, predict)
 		SVM_THROW("No model available to classify with", 106);
 	}
 	
-	x = php_svm_get_data_from_array(arr TSRMLS_CC);
+	x = php_svm_get_data_from_array(arr);
 	predict_label = svm_predict(intern->model, x);
 	efree(x);
 	
@@ -1134,7 +1134,7 @@ PHP_METHOD(svmmodel, predict_probability)
 	zend_object * zobj;
 	
 	/* we want an array of data to be passed in */
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "az/", &arr, &retarr) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS(), "az/", &arr, &retarr) == FAILURE) {
 	    return;
 	}
 
@@ -1144,7 +1144,7 @@ PHP_METHOD(svmmodel, predict_probability)
 		SVM_THROW("No model available to classify with", 106);
 	}
 
-	x = php_svm_get_data_from_array(arr TSRMLS_CC);
+	x = php_svm_get_data_from_array(arr);
 	nr_classes = svm_get_nr_class(intern->model);
 	estimates = safe_emalloc(nr_classes, sizeof(double), 0);
 	labels = safe_emalloc(nr_classes, sizeof(int), 0);
@@ -1169,7 +1169,7 @@ PHP_METHOD(svmmodel, predict_probability)
 
 /* ---- END SVMMODEL ---- */
 
-static void php_svm_object_free_storage(zend_object *object TSRMLS_DC)
+static void php_svm_object_free_storage(zend_object *object)
 {
 	php_svm_object *intern;
 
@@ -1179,10 +1179,10 @@ static void php_svm_object_free_storage(zend_object *object TSRMLS_DC)
 		return;
 	}
 
-	zend_object_std_dtor(&intern->zo TSRMLS_CC);
+	zend_object_std_dtor(&intern->zo);
 }
 
-static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr TSRMLS_DC)
+static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr)
 {
 	zval *tmp;
 	php_svm_object *intern;
@@ -1197,19 +1197,19 @@ static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_
 	/* Null model by default */
 	memset(intern->last_error, 0, 512);
 
-	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
+	zend_object_std_init(&intern->zo, class_type);
 	object_properties_init(&intern->zo, class_type);
     intern->zo.handlers = &svm_object_handlers;
 
     return &intern->zo;
 }
 
-static zend_object * php_svm_object_new(zend_class_entry *class_type TSRMLS_DC)
+static zend_object * php_svm_object_new(zend_class_entry *class_type)
 {
-	return php_svm_object_new_ex(class_type, NULL TSRMLS_CC);
+	return php_svm_object_new_ex(class_type, NULL);
 }
 
-static void php_svm_model_object_free_storage(zend_object *object TSRMLS_DC)
+static void php_svm_model_object_free_storage(zend_object *object)
 {
 	php_svm_model_object *intern;
 
@@ -1235,11 +1235,11 @@ static void php_svm_model_object_free_storage(zend_object *object TSRMLS_DC)
 		intern->x_space = NULL;
 	}
 
-	zend_object_std_dtor(&intern->zo TSRMLS_CC);
+	zend_object_std_dtor(&intern->zo);
 }
 
 
-static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr TSRMLS_DC)
+static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr)
 {
 	//zend_object_value retval;
 	php_svm_model_object *intern;
@@ -1254,7 +1254,7 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
 	intern->x_space = emalloc(problemSize * sizeof(struct svm_node));
 	intern->model = NULL;
 	
-	zend_object_std_init(&intern->zo, class_type TSRMLS_CC);
+	zend_object_std_init(&intern->zo, class_type);
 
 	object_properties_init(&intern->zo, class_type);
  
@@ -1264,9 +1264,9 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
 }
 
 
-static zend_object * php_svm_model_object_new(zend_class_entry *class_type TSRMLS_DC)
+static zend_object * php_svm_model_object_new(zend_class_entry *class_type)
 {
-	return php_svm_model_object_new_ex(class_type, NULL TSRMLS_CC);
+	return php_svm_model_object_new_ex(class_type, NULL);
 }
 
 ZEND_BEGIN_ARG_INFO_EX(svm_empty_args, 0, 0, 0)
@@ -1344,14 +1344,14 @@ PHP_MINIT_FUNCTION(svm)
 
 	INIT_CLASS_ENTRY(ce, "svm", php_svm_class_methods);
 	ce.create_object = php_svm_object_new;
-	php_svm_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
+	php_svm_sc_entry = zend_register_internal_class(&ce);
 
 	INIT_CLASS_ENTRY(ce, "svmmodel", php_svm_model_class_methods);
 	ce.create_object = php_svm_model_object_new;
-	php_svm_model_sc_entry = zend_register_internal_class(&ce TSRMLS_CC);
+	php_svm_model_sc_entry = zend_register_internal_class(&ce);
 
 	INIT_CLASS_ENTRY(ce, "svmexception", NULL);
-	php_svm_exception_sc_entry = zend_register_internal_class_ex(&ce, zend_exception_get_default(TSRMLS_C));
+	php_svm_exception_sc_entry = zend_register_internal_class_ex(&ce, zend_exception_get_default());
 	php_svm_exception_sc_entry->ce_flags |= ZEND_ACC_FINAL;
 	
 	/* Redirect the lib svm output */
@@ -1362,7 +1362,7 @@ PHP_MINIT_FUNCTION(svm)
 	#endif
 
         #define SVM_REGISTER_CONST_LONG(const_name, value) \
-	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, (long)value TSRMLS_CC);	
+	zend_declare_class_constant_long(php_svm_sc_entry, const_name, sizeof(const_name)-1, (long)value);	
 
 	/* SVM types */
 	SVM_REGISTER_CONST_LONG("C_SVC", C_SVC);
