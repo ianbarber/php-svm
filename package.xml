@@ -74,6 +74,13 @@ http://pear.php.net/dtd/package-2.0.xsd">
         <file name="australian.scale" role="test" />
         <file name="baddata.scale" role="test" />
       </dir>
+
+      <!-- Bundled libsvm -->
+      <dir name="libsvm">
+        <file name="svm.cpp" role="src" />
+        <file name="svm.h" role="src" />
+        <file name="COPYRIGHT" role="doc" />
+      </dir>
      </dir>
  </contents>
  <dependencies>
