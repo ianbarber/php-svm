@@ -414,7 +414,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 return_error:
 	php_svm_free_problem(problem);
 	if (err_msg) {
-		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, err_msg);
+		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "%s", err_msg);
 	}
 		
 	return NULL;
@@ -429,7 +429,7 @@ static zend_bool php_svm_train(php_svm_object *intern, php_svm_model_object *int
 	const char *err_msg = NULL;
 	err_msg = svm_check_parameter(problem, &(intern->param));
 	if (err_msg) {
-		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, err_msg);
+		snprintf(intern->last_error, SVM_ERROR_MSG_SIZE, "%s", err_msg);
 		return FALSE;
 	}
 
