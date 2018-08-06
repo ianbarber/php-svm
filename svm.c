@@ -80,7 +80,7 @@ typedef enum SvmBoolAttribute {
 
 static void print_null(const char *s) {}
 
-static zend_bool php_svm_set_bool_attribute(php_svm_object *intern, SvmBoolAttribute name, zend_bool value) 
+static zend_bool php_svm_set_bool_attribute(php_svm_object *intern, SvmBoolAttribute name, zend_bool value) /*{{{*/
 {
 	if (name >= SvmBoolAttributeMax) {
 		return FALSE;
@@ -98,9 +98,9 @@ static zend_bool php_svm_set_bool_attribute(php_svm_object *intern, SvmBoolAttri
 	}
 
 	return TRUE;
-}
+}/*}}}*/
 
-static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleAttribute name, double value) 
+static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleAttribute name, double value) /*{{{*/
 {
 	if (name >= SvmDoubleAttributeMax) {
 		return FALSE;
@@ -133,9 +133,9 @@ static zend_bool php_svm_set_double_attribute(php_svm_object *intern, SvmDoubleA
 	}
 	
 	return TRUE;
-}
+}/*}}}*/
 
-static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttribute name, zend_long value) 
+static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttribute name, zend_long value) /*{{{*/
 {
 	if (name >= SvmLongAttributeMax) {
 		return FALSE;
@@ -170,7 +170,7 @@ static zend_bool php_svm_set_long_attribute(php_svm_object *intern, SvmLongAttri
 	}
 	
 	return TRUE;
-}
+}/*}}}*/
 
 /** {{{ zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *stream, zval *retval)
 	Take a stream containing lines of SVMLight format data and convert them into a PHP array for use by the training
@@ -987,6 +987,8 @@ PHP_METHOD(svmmodel, getSvmType)
 	
 	RETURN_LONG(svm_type);
 }
+/* }}} */
+
 
 
 /** {{{ SvmModel::getNrClass()
@@ -1009,6 +1011,8 @@ PHP_METHOD(svmmodel, getNrClass)
 	
 	RETURN_LONG(nr_classes);
 }
+/* }}} */
+
 
 /** {{{ SvmModel::getLabels()
 	Gets an array of labels that the model was trained with. For regression
@@ -1040,6 +1044,7 @@ PHP_METHOD(svmmodel, getLabels)
 	
 	efree(labels);
 }
+/* }}} */
 
 
 /** {{{ SvmModel::checkProbabilityModel()
@@ -1061,6 +1066,7 @@ PHP_METHOD(svmmodel, checkProbabilityModel)
 	
 	RETURN_BOOL( prob );
 }
+/* }}} */
 
 
 /** {{{ SvmModel::getSvrProbability()
@@ -1083,6 +1089,7 @@ PHP_METHOD(svmmodel, getSvrProbability)
 	
 	RETURN_DOUBLE(svr_prob);
 }
+/* }}} */
 
 /** {{{ SvmModel::predict(array data)
 	Predicts based on the model
@@ -1167,7 +1174,7 @@ PHP_METHOD(svmmodel, predict_probability)
 
 /* ---- END SVMMODEL ---- */
 
-static void php_svm_object_free_storage(zend_object *object)
+static void php_svm_object_free_storage(zend_object *object)/*{{{*/
 {
 	php_svm_object *intern;
 
@@ -1178,9 +1185,9 @@ static void php_svm_object_free_storage(zend_object *object)
 	}
 
 	zend_object_std_dtor(&intern->zo);
-}
+}/*}}}*/
 
-static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr)
+static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_object **ptr)/*{{{*/
 {
 	php_svm_object *intern;
 
@@ -1199,14 +1206,14 @@ static zend_object* php_svm_object_new_ex(zend_class_entry *class_type, php_svm_
     intern->zo.handlers = &svm_object_handlers;
 
     return &intern->zo;
-}
+}/*}}}*/
 
-static zend_object * php_svm_object_new(zend_class_entry *class_type)
+static zend_object * php_svm_object_new(zend_class_entry *class_type)/*{{{*/
 {
 	return php_svm_object_new_ex(class_type, NULL);
-}
+}/*}}}*/
 
-static void php_svm_model_object_free_storage(zend_object *object)
+static void php_svm_model_object_free_storage(zend_object *object)/*{{{*/
 {
 	php_svm_model_object *intern;
 
@@ -1233,10 +1240,10 @@ static void php_svm_model_object_free_storage(zend_object *object)
 	}
 
 	zend_object_std_dtor(&intern->zo);
-}
+}/*}}}*/
 
 
-static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr)
+static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr)/*{{{*/
 {
 	//zend_object_value retval;
 	php_svm_model_object *intern;
@@ -1258,14 +1265,15 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
     intern->zo.handlers = &svm_model_object_handlers;
 
     return &intern->zo;
-}
+}/*}}}*/
 
 
-static zend_object * php_svm_model_object_new(zend_class_entry *class_type)
+static zend_object * php_svm_model_object_new(zend_class_entry *class_type)/*{{{*/
 {
 	return php_svm_model_object_new_ex(class_type, NULL);
-}
+}/*}}}*/
 
+/* {{{ SVM arginfo */
 ZEND_BEGIN_ARG_INFO_EX(svm_empty_args, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -1282,8 +1290,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(svm_params_args, 0, 0, 1)
 	ZEND_ARG_INFO(0, params)
 ZEND_END_ARG_INFO()
+/* }}} */
 
-static zend_function_entry php_svm_class_methods[] =
+static zend_function_entry php_svm_class_methods[] =/*{{{*/
 {
 	PHP_ME(svm, __construct,	svm_empty_args,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(svm, getOptions,		svm_empty_args,	ZEND_ACC_PUBLIC)
@@ -1291,8 +1300,9 @@ static zend_function_entry php_svm_class_methods[] =
 	PHP_ME(svm, train,			svm_train_args,	ZEND_ACC_PUBLIC)
 	PHP_ME(svm, crossvalidate,	svm_crossvalidate_args,	ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
-};
+};/*}}}*/
 
+/* {{{ Model arginfo */
 ZEND_BEGIN_ARG_INFO_EX(svm_model_construct_args, 0, 0, 0)
 	ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
@@ -1312,8 +1322,9 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(svm_model_info_args, 0, 0, 0)
 ZEND_END_ARG_INFO()
+/* }}} */
 
-static zend_function_entry php_svm_model_class_methods[] =
+static zend_function_entry php_svm_model_class_methods[] =/*{{{*/
 {
 	PHP_ME(svmmodel, __construct,	svm_model_construct_args,	ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
 	PHP_ME(svmmodel, save,			svm_model_file_args,	ZEND_ACC_PUBLIC)
@@ -1326,9 +1337,9 @@ static zend_function_entry php_svm_model_class_methods[] =
 	PHP_ME(svmmodel, predict, 		svm_model_predict_args, ZEND_ACC_PUBLIC)
 	PHP_ME(svmmodel, predict_probability,	svm_model_predict_probs_args, ZEND_ACC_PUBLIC)
 	{ NULL, NULL, NULL }
-};
+};/*}}}*/
 
-PHP_MINIT_FUNCTION(svm)
+PHP_MINIT_FUNCTION(svm)/*{{{*/
 {
 	zend_class_entry ce;
 	memcpy(&svm_object_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
@@ -1394,15 +1405,15 @@ PHP_MINIT_FUNCTION(svm)
 #undef SVM_REGISTER_CONST_LONG
 
 	return SUCCESS;
-}
+}/*}}}*/
 
-PHP_MSHUTDOWN_FUNCTION(svm)
+PHP_MSHUTDOWN_FUNCTION(svm)/*{{{*/
 {
 	UNREGISTER_INI_ENTRIES();
 	return SUCCESS;
-}
+}/*}}}*/
 
-PHP_MINFO_FUNCTION(svm)
+PHP_MINFO_FUNCTION(svm)/*{{{*/
 {
 	php_info_print_table_start();
 		php_info_print_table_header(2, "svm extension", "enabled");
@@ -1410,7 +1421,7 @@ PHP_MINFO_FUNCTION(svm)
 	php_info_print_table_end();
 
 	DISPLAY_INI_ENTRIES();
-}
+}/*}}}*/
 
 /* No global functions */
 zend_function_entry svm_functions[] = {
@@ -1435,3 +1446,12 @@ zend_module_entry svm_module_entry =
 #ifdef COMPILE_DL_SVM
 ZEND_GET_MODULE(svm)
 #endif /* COMPILE_DL_SVM */
+
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * End:
+ * vim600: noet sw=4 ts=4 fdm=marker
+ * vim<600: noet sw=4 ts=4
+ */
