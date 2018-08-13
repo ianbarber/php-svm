@@ -40,9 +40,9 @@ echo $model->getSvrProbability() > 11 ? "ok\n" : "fail\n";
 var_dump($model->checkProbabilityModel());
 
 ?>
---EXPECT--
+--EXPECTF--
 ok
 28
 28
-ok
+%Aok
 bool(true)
