@@ -48,7 +48,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
       <file name="svm.c" role="src" />
 
       <!-- Misc files -->
-      <file name="README" role="doc" />
+      <file name="README.md" role="doc" />
       <file name="CREDITS" role="doc" />
       <file name="LICENSE" role="doc" />
       
