@@ -1427,7 +1427,7 @@ PHP_MINFO_FUNCTION(svm)/*{{{*/
 {
 	php_info_print_table_start();
 		php_info_print_table_header(2, "svm extension", "enabled");
-		php_info_print_table_row(2, "svm extension version", PHP_SVM_EXTVER);
+		php_info_print_table_row(2, "svm extension version", PHP_SVM_VERSION);
 	php_info_print_table_end();
 
 	DISPLAY_INI_ENTRIES();
@@ -1441,14 +1441,14 @@ zend_function_entry svm_functions[] = {
 zend_module_entry svm_module_entry =
 {
 	STANDARD_MODULE_HEADER,
-	PHP_SVM_EXTNAME,
+	"svm",
 	svm_functions,				/* Functions */
 	PHP_MINIT(svm),				/* MINIT */
 	PHP_MSHUTDOWN(svm),			/* MSHUTDOWN */
 	NULL,						/* RINIT */
 	NULL,						/* RSHUTDOWN */
 	PHP_MINFO(svm),				/* MINFO */
-	PHP_SVM_EXTVER,				/* version */
+	PHP_SVM_VERSION,			/* version */
 	STANDARD_MODULE_PROPERTIES
 };
 
