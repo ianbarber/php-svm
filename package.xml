@@ -29,7 +29,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <release>beta</release>
   <api>beta</api>
  </stability>
- <license uri="http://www.php.net/license">PHP</license>
+ <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
  <notes>
 	 - Fixed PHP 7 compatibility (@echobot, Anatol)
  </notes>
@@ -107,7 +107,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
        <release>beta</release>
        <api>beta</api>
      </stability>
-     <license uri="http://www.php.net/license">PHP</license>
+     <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
      <notes>
 	- Verified works with 3.14
 	- Fixed option return format
