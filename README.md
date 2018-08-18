@@ -7,11 +7,12 @@
 Available via PECL: http://pecl.php.net/package/svm
 Documentation at: http://php.net/manual/en/book.svm.php
 
-LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts. The extension requires PHP 5.2 or above.
+LibSVM is an efficient solver for SVM classification and regression problems. The svm extension wraps this in a PHP interface for easy use in PHP scripts.
+As of version 0.2.0 the extension requires PHP 7.0 or above. Older versions are compatible with PHP from 5.2 to 5.6.
 
 # INSTALLATION
 
-Libsvm itself is required, and is available through some package management, or direct from the website. 
+Libsvm itself is required. A bundled libsvm version is delivered as of version 0.2.0 and will be used when libsvm is not available on the target system. An external libsvm is usually available through some package management or can be compiled from source when fetched directly from the website. 
 
 On ubuntu and other debian based systems, you may be able to installed the `libsvm-dev` package:
 
@@ -34,11 +35,11 @@ Once libsvm is installed, the extension can be installed in the usual way.
 
 # INSTALLING ON WINDOWS
 
-A prebuilt win32 DLL is available from http://phpir.com/svm
+A prebuilt win32 DLL is available from https://pecl.php.net/package/svm. The latest development snapshots are also fetcheable from AppVeyor artifacts.
 
 The extension builds properly on Windows, if following the Windows step by step build process: https://wiki.php.net/internals/windows/stepbystepbuild 
 
-0. Put SVM source in pecl/svm in php53dev directory
+0. Put SVM source in pecl/svm in phpdev directory
 0. Download latest libsvm, rename Makefile to Makefile.old and Makefile.win to Makefile - nmake 
 0. Copy libsvm.lib from libsvm windows directory, and into deps/libs
 0. Copy svm.h into `includes/libsvm/`
@@ -47,7 +48,7 @@ buildconf
 configure --disable-all --enable-cli --with-svm=shared
 nmake
 ```
-Make sure the libsvm.dll file from the libsvm windows directory in the path when running the resulting lib. 
+Note, that if the bundled libsvm is used, the instructions about the libsvm setup can be ommited. Otherwise, make sure the libsvm.dll file from the libsvm windows directory in the path when running the resulting lib. 
 
 # USAGE
 
