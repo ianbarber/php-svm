@@ -208,7 +208,6 @@ static zend_bool php_svm_stream_to_array(php_svm_object *intern, php_stream *str
 			}
 			
 			/* The line array */
-			//MAKE_STD_ZVAL(line_array);
 			array_init(&line_array);
 
 			/* The label */
