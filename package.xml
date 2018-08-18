@@ -14,16 +14,16 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>ian.barber@gmail.co.uk</email>
   <active>yes</active>
  </lead>
-	<lead>
-		<name>Anatol Belski</name>
-		<user>ab</user>
-		<email>ab@php.net</email>
-		<active>yes</active>
-	</lead>
- <date>2013-04-02</date>
+ <lead>
+  <name>Anatol Belski</name>
+  <user>ab</user>
+  <email>ab@php.net</email>
+  <active>yes</active>
+ </lead>
+ <date>2018-08-18</date>
  <version>
   <release>1.0.0</release>
-  <api>0.1.5</api>
+  <api>1.0.0</api>
  </version>
  <stability>
   <release>beta</release>
@@ -31,7 +31,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
  <notes>
-	 - Fixed PHP 7 compatibility (@echobot, Anatol)
+	 - Fixed PHP 7 compatibility. (@echobot, Anatol)
+	 - Bundled libsvm. External libsvm is still preferred, if installed. (Anatol)
  </notes>
  <contents>
    <dir name="/">
