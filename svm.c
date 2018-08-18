@@ -284,6 +284,8 @@ static void php_svm_free_problem(struct svm_problem *problem) {
 }
 /* }}} */
 
+#define ALLOC_XSPACE(model, sz)  model->x_space = (struct svm_node *)emalloc(sz * sizeof(struct svm_node))
+
 /* {{{ static zend_bool php_svm_read_array(php_svm_object *intern, php_svm_model_object *intern_model, zval *array)
 Take a PHP array, and prepare libSVM problem data for training with. 
 */
@@ -326,7 +328,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 
 		zobj = Z_OBJ_P(rzval);
 		intern_model = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));	
-		intern_model->x_space = emalloc(elements * sizeof(struct svm_node));
+		ALLOC_XSPACE(intern_model, elements);
 	}
 	
 
@@ -1262,7 +1264,7 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
 	}
 
 	if (problemSize) {
-		intern->x_space = emalloc(problemSize * sizeof(struct svm_node));
+		ALLOC_XSPACE(intern, problemSize);
 	} else {
 		intern->x_space = NULL;
 	}
