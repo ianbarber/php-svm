@@ -726,7 +726,7 @@ PHP_METHOD(svm, crossvalidate)
 {
 	int i;
 	int total_correct = 0;
-	long nrfolds;
+	zend_long nrfolds;
 	double total_error = 0;
 	double sumv = 0, sumy = 0, sumvv = 0, sumyy = 0, sumvy = 0;
 	struct svm_problem *problem;
