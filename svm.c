@@ -278,9 +278,7 @@ static void php_svm_free_problem(struct svm_problem *problem) {
 		efree(problem->y);
 	}
 	
-	if (problem) {
-		efree(problem);
-	}
+	efree(problem);
 }
 /* }}} */
 
