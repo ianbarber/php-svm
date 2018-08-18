@@ -39,8 +39,6 @@ static zend_class_entry *php_svm_exception_sc_entry;
 static zend_object_handlers svm_object_handlers;
 static zend_object_handlers svm_model_object_handlers;
 
-static int problemSize;
-
 #ifndef TRUE
 #       define TRUE 1
 #       define FALSE 0
@@ -306,8 +304,6 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 	/* total number of elements */
 	elements = _php_count_values(array);
 
-	problemSize = elements;
-
 	if (intern_model)
 	{
 		/* If reading multiple times make sure that we don't leak */
@@ -330,6 +326,7 @@ static struct svm_problem* php_svm_read_array(php_svm_object *intern, php_svm_mo
 
 		zobj = Z_OBJ_P(rzval);
 		intern_model = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));	
+		intern_model->x_space = emalloc(elements * sizeof(struct svm_node));
 	}
 	
 
@@ -1252,7 +1249,7 @@ static void php_svm_model_object_free_storage(zend_object *object)/*{{{*/
 }/*}}}*/
 
 
-static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr)/*{{{*/
+static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr, size_t problemSize)/*{{{*/
 {
 	//zend_object_value retval;
 	php_svm_model_object *intern;
@@ -1264,7 +1261,11 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
 		*ptr = intern;
 	}
 
-	intern->x_space = emalloc(problemSize * sizeof(struct svm_node));
+	if (problemSize) {
+		intern->x_space = emalloc(problemSize * sizeof(struct svm_node));
+	} else {
+		intern->x_space = NULL;
+	}
 	intern->model = NULL;
 	
 	zend_object_std_init(&intern->zo, class_type);
@@ -1279,7 +1280,7 @@ static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, p
 
 static zend_object * php_svm_model_object_new(zend_class_entry *class_type)/*{{{*/
 {
-	return php_svm_model_object_new_ex(class_type, NULL);
+	return php_svm_model_object_new_ex(class_type, NULL, 0);
 }/*}}}*/
 
 /* {{{ SVM arginfo */
