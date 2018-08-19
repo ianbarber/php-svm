@@ -22,8 +22,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </lead>
  <date>2018-08-19</date>
  <version>
-  <release>0.2.1</release>
-  <api>0.2.1</api>
+  <release>0.2.2</release>
+  <api>0.2.2</api>
  </version>
  <stability>
   <release>beta</release>
@@ -31,7 +31,7 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
  <notes>
-	 - Fix package.xml which was missing config.w32
+	 - todo
  </notes>
  <contents>
    <dir name="/">
@@ -97,6 +97,21 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <providesextension>svm</providesextension>
  <extsrcrelease />
  <changelog>
+   <release>
+    <date>2018-08-19</date>
+    <version>
+     <release>0.2.1</release>
+     <api>0.2.1</api>
+    </version>
+    <stability>
+     <release>beta</release>
+     <api>beta</api>
+    </stability>
+    <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
+    <notes>
+	 - Fix package.xml which was missing config.w32
+    </notes>
+   </release>
    <release>
     <date>2018-08-19</date>
     <version>
