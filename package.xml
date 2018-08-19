@@ -31,11 +31,13 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
  <notes>
+	 - Fix package.xml which was missing config.w32
  </notes>
  <contents>
    <dir name="/">
       <!-- Support files -->
       <file name="config.m4" role="src" />
+      <file name="config.w32" role="src" />
 
       <!-- Headers -->
       <file name="php_svm.h" role="src">
