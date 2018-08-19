@@ -20,10 +20,10 @@ http://pear.php.net/dtd/package-2.0.xsd">
   <email>ab@php.net</email>
   <active>yes</active>
  </lead>
- <date>2018-08-18</date>
+ <date>2018-08-19</date>
  <version>
-  <release>0.2.0</release>
-  <api>0.2.0</api>
+  <release>0.2.1</release>
+  <api>0.2.1</api>
  </version>
  <stability>
   <release>beta</release>
@@ -31,8 +31,6 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </stability>
  <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
  <notes>
-	 - Fixed PHP 7 compatibility. (@echobot, Anatol)
-	 - Bundled libsvm. External libsvm is still preferred, if installed. (Anatol)
  </notes>
  <contents>
    <dir name="/">
@@ -97,6 +95,22 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <providesextension>svm</providesextension>
  <extsrcrelease />
  <changelog>
+   <release>
+    <date>2018-08-19</date>
+    <version>
+     <release>0.2.0</release>
+     <api>0.2.0</api>
+    </version>
+    <stability>
+     <release>beta</release>
+     <api>beta</api>
+    </stability>
+    <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
+    <notes>
+	 - Fixed PHP 7 compatibility. (@echobot, Anatol)
+	 - Bundled libsvm. External libsvm is still preferred, if installed. (Anatol)
+    </notes>
+   </release>
    <release>
      <date>2013-04-02</date>
      <time>20:00:00</time>
