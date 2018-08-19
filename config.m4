@@ -52,7 +52,7 @@ dnl Get PHP version depending on shared/static build
     PHP_ADD_LIBRARY(stdc++,,SVM_SHARED_LIBADD)
 
     PHP_NEW_EXTENSION(svm, svm.c, $ext_shared,, -DZEND_ENABLE_STATIC_TSRMLS_CACHE=1, cxx)
-    PHP_ADD_SOURCES_X(PHP_EXT_DIR(svm), libsvm/svm.cpp, -std=c++14, shared_objects_svm, yes)
+    PHP_ADD_SOURCES_X(PHP_EXT_DIR(svm), $ext_builddir/libsvm/svm.cpp, -std=c++14, shared_objects_svm, yes)
 
     PHP_ADD_INCLUDE($ext_srcdir/libsvm)
     PHP_ADD_INCLUDE($ext_builddir/libsvm)
