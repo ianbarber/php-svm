@@ -28,7 +28,7 @@
 #ifndef _PHP_SVM_H_
 # define _PHP_SVM_H_
 
-#define PHP_SVM_VERSION  "0.2.2"
+#define PHP_SVM_VERSION  "0.2.3-dev"
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"

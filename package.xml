@@ -22,8 +22,8 @@ http://pear.php.net/dtd/package-2.0.xsd">
  </lead>
  <date>2018-08-19</date>
  <version>
-  <release>0.2.2</release>
-  <api>0.2.2</api>
+  <release>0.2.3</release>
+  <api>0.2.3</api>
  </version>
  <stability>
   <release>beta</release>
@@ -97,6 +97,21 @@ http://pear.php.net/dtd/package-2.0.xsd">
  <providesextension>svm</providesextension>
  <extsrcrelease />
  <changelog>
+   <release>
+    <date>2018-08-19</date>
+    <version>
+     <release>0.2.2</release>
+     <api>0.2.2</api>
+    </version>
+    <stability>
+     <release>beta</release>
+     <api>beta</api>
+    </stability>
+    <license uri="http://opensource.org/licenses/BSD-3-Clause">BSD 3-clause</license>
+    <notes>
+	 - Fixed compilation with bundled libsvm through pecl
+    </notes>
+   </release>
    <release>
     <date>2018-08-19</date>
     <version>
