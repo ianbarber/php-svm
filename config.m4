@@ -62,7 +62,7 @@ dnl Get PHP version depending on shared/static build
   
     AC_MSG_CHECKING([for libsvm shared libraries])
     PHP_CHECK_LIBRARY(svm, svm_train, [
-      PHP_ADD_LIBRARY_WITH_PATH(svm, $SVM_PREFIX/lib, SVM_SHARED_LIBADD)
+      PHP_ADD_LIBRARY_WITH_PATH(svm, $SVM_PREFIX/$PHP_LIBDIR, SVM_SHARED_LIBADD)
       PHP_ADD_INCLUDE($SVM_INC_DIR)
     ],[
       AC_MSG_ERROR([not found. Make sure that libsvm is installed])
