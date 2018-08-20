@@ -1433,7 +1433,7 @@ PHP_MINFO_FUNCTION(svm)/*{{{*/
 	php_info_print_table_start();
 		php_info_print_table_header(2, "svm extension", "enabled");
 		php_info_print_table_row(2, "svm extension version", PHP_SVM_VERSION);
-		snprintf(_tmp, sizeof(_tmp), "%d", LIBSVM_VERSION);
+		snprintf(_tmp, sizeof(_tmp), "%d.%d", (int)(LIBSVM_VERSION/100), (int)(LIBSVM_VERSION % 100));
 		php_info_print_table_row(2, "libsvm version", _tmp);
 	php_info_print_table_end();
 
