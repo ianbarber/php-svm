@@ -86,6 +86,17 @@ typedef enum SvmBoolAttribute {
 
 /* ---- START HELPER FUNCS ---- */
 
+static zend_always_inline php_svm_object* php_svm_fetch_svm_object(zend_object* obj)/*{{{*/
+{
+	return (php_svm_object *)((char *)obj - XtOffsetOf(php_svm_object, zo));
+}/*}}}*/
+
+
+static zend_always_inline php_svm_model_object* php_svm_fetch_svm_model_object(zend_object* obj)/*{{{*/
+{
+	return (php_svm_model_object *)((char *)obj - XtOffsetOf(php_svm_model_object, zo));
+}/*}}}*/
+
 static void print_null(const char *s) {}
 
 static zend_bool php_svm_set_bool_attribute(php_svm_object *intern, SvmBoolAttribute name, zend_bool value) /*{{{*/
@@ -565,16 +576,12 @@ The constructor
 PHP_METHOD(svm, __construct)
 {
 	php_svm_object *intern;
-	zend_object * zobj;
-
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "") == FAILURE) {
         SVM_THROW("Invalid parameters passed to constructor", 154);
 	}
 	
-	//intern = (php_svm_object *) Z_OBJ_P(getThis());
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
 	/* Setup the default parameters to match those in libsvm's svm_train */
 	php_svm_set_long_attribute(intern, phpsvm_svm_type, C_SVC);
@@ -599,10 +606,8 @@ Get training parameters, in an array.
 PHP_METHOD(svm, getOptions) 
 {
 	php_svm_object *intern;
-	zend_object * zobj;
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
 	array_init(return_value); 
 	
@@ -635,7 +640,6 @@ PHP_METHOD(svm, setOptions)
 	zval *params, *pzval;
 	zend_string *string_key = NULL;
 	zend_ulong num_key;
-	zend_object * zobj;
 	zend_bool boolTmp;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &params) == FAILURE) {
@@ -648,8 +652,7 @@ PHP_METHOD(svm, setOptions)
 		return;
 	}
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
 	for (zend_hash_internal_pointer_reset(params_ht);
 		 (pzval = zend_hash_get_current_data(params_ht)) != NULL;
@@ -733,7 +736,6 @@ PHP_METHOD(svm, crossvalidate)
 	php_svm_object *intern;
 	php_svm_model_object *intern_return = NULL;
 	zval *zparam, data;
-	zend_object * zobj;
 	zval * data_p = &data;
 
 	
@@ -741,8 +743,7 @@ PHP_METHOD(svm, crossvalidate)
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
 	array_init(data_p);
 	int ret = php_svm_get_data_from_param(intern, zparam, &data_p);
@@ -805,7 +806,6 @@ PHP_METHOD(svm, train)
 	zval *weights;
 	zval *pzval;
 	HashTable *weights_ht;
-	zend_object *zobj;
 	int i;
 	zend_string *key;
 	zend_ulong index;
@@ -818,8 +818,7 @@ PHP_METHOD(svm, train)
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_object *)((char *)zobj - XtOffsetOf(php_svm_object, zo));
+	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 
 	if(weights && intern->param.svm_type != C_SVC) {
 		SVM_THROW("Weights can only be supplied for C_SyVC training", 424);
@@ -907,7 +906,7 @@ PHP_METHOD(svmmodel, __construct)
 		return;
 	}
 
-	intern = (php_svm_model_object *)Z_OBJ_P(getThis());
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	intern->model = svm_load_model(filename);
 	
 	if (!intern->model) {
@@ -926,14 +925,12 @@ PHP_METHOD(svmmodel, load)
 	php_svm_model_object *intern;
 	char *filename = NULL;
 	size_t filename_len;
-	zend_object * zobj;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	intern->model = svm_load_model(filename);
 	
 	if (!intern->model) {
@@ -951,15 +948,13 @@ PHP_METHOD(svmmodel, save)
 {
 	php_svm_model_object *intern;
 	char *filename;
-	zend_object *zobj;
 	size_t filename_len;
 	
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &filename, &filename_len) == FAILURE) {
 		return;
 	}
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	
 	if (!intern->model) {
 		SVM_THROW("The object does not contain a model", 2321);
@@ -981,10 +976,8 @@ PHP_METHOD(svmmodel, getSvmType)
 {
 	php_svm_model_object *intern;
 	int svm_type;
-	zend_object *zobj;
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1005,10 +998,8 @@ PHP_METHOD(svmmodel, getNrClass)
 {
 	php_svm_model_object *intern;
 	int nr_classes;
-	zend_object * zobj;
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1030,10 +1021,8 @@ PHP_METHOD(svmmodel, getLabels)
 	int nr_classes;
 	int* labels;
 	int i;
-	zend_object * zobj;
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1059,11 +1048,9 @@ PHP_METHOD(svmmodel, getLabels)
 PHP_METHOD(svmmodel, checkProbabilityModel)
 {
 	php_svm_model_object *intern;
-	zend_object * zobj;
 	int prob;
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1083,10 +1070,8 @@ PHP_METHOD(svmmodel, getSvrProbability)
 {
 	php_svm_model_object *intern;
 	double svr_prob;
-	zend_object * zobj;
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
 	}
@@ -1106,15 +1091,13 @@ PHP_METHOD(svmmodel, predict)
 	double predict_label;
 	struct svm_node *x;
 	zval *arr;
-	zend_object * zobj;
 
 	/* we want an array of data to be passed in */
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &arr) == FAILURE) {
 	    return;
 	}
 	
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -1142,15 +1125,13 @@ PHP_METHOD(svmmodel, predict_probability)
 	int *labels;
 	zval *arr; 
 	zval *retarr = NULL;
-	zend_object * zobj;
 	
 	/* we want an array of data to be passed in */
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "az/", &arr, &retarr) == FAILURE) {
 	    return;
 	}
 
-	zobj = Z_OBJ_P(getThis());
-	intern = (php_svm_model_object *)((char *)zobj - XtOffsetOf(php_svm_model_object, zo));
+	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available to classify with", 106);
 	}
@@ -1251,7 +1232,6 @@ static void php_svm_model_object_free_storage(zend_object *object)/*{{{*/
 
 static zend_object * php_svm_model_object_new_ex(zend_class_entry *class_type, php_svm_model_object **ptr, size_t problemSize)/*{{{*/
 {
-	//zend_object_value retval;
 	php_svm_model_object *intern;
 
 	/* Allocate memory for the internal structure */
