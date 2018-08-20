@@ -6,7 +6,7 @@ if test "$PHP_SVM" != "no"; then
 
 dnl Get PHP version depending on shared/static build
 
-  AC_MSG_CHECKING([PHP version is at least 5.2.0])
+  AC_MSG_CHECKING([PHP version is at least 7.0.0])
 
   if test -z "${PHP_VERSION_ID}"; then
     if test -z "${PHP_CONFIG}"; then
@@ -19,7 +19,7 @@ dnl Get PHP version depending on shared/static build
     PHP_SVM_FOUND_VERSION="${PHP_VERSION}"
   fi
 
-  if test "$PHP_SVM_FOUND_VERNUM" -ge "50200"; then
+  if test "$PHP_SVM_FOUND_VERNUM" -ge "70000"; then
     AC_MSG_RESULT(yes. found $PHP_SVM_FOUND_VERSION)
   else 
     AC_MSG_ERROR(no. found $PHP_SVM_FOUND_VERSION)
