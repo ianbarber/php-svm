@@ -130,7 +130,7 @@ after_build:
                 if ('x64' -eq $env:ARCH) { $dir = $dir + 'x64\' }
                 $dir = $dir + 'Release'
                 if ('1' -eq $env:TS) { $dir = $dir + '_TS' }
-                & 7z a c:\$zip_bname $dir\php_svm.dll $dir\php_svm.pdb c:\projects\svm\LICENSE /c/projects/svm/CREDITS
+                & 7z a c:\$zip_bname $dir\php_svm.dll $dir\php_svm.pdb c:\projects\svm\LICENSE c:\projects\svm\CREDITS
                 Push-AppveyorArtifact c:\$zip_bname
 
 test_script:
