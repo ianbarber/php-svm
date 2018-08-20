@@ -576,10 +576,11 @@ The constructor
 PHP_METHOD(svm, __construct)
 {
 	php_svm_object *intern;
-	
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "") == FAILURE) {
-        SVM_THROW("Invalid parameters passed to constructor", 154);
-	}
+
+	if (zend_parse_parameters_none() == FAILURE) {
+		/* Actually this should just return. Keep for BC. */
+		SVM_THROW("Invalid parameters passed to constructor", 154);
+    }
 	
 	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
@@ -606,6 +607,10 @@ Get training parameters, in an array.
 PHP_METHOD(svm, getOptions) 
 {
 	php_svm_object *intern;
+
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
 
 	intern = php_svm_fetch_svm_object(Z_OBJ_P(getThis()));
 	
@@ -977,6 +982,10 @@ PHP_METHOD(svmmodel, getSvmType)
 	php_svm_model_object *intern;
 	int svm_type;
 	
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
+
 	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
@@ -999,6 +1008,10 @@ PHP_METHOD(svmmodel, getNrClass)
 	php_svm_model_object *intern;
 	int nr_classes;
 	
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
+
 	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
@@ -1022,6 +1035,10 @@ PHP_METHOD(svmmodel, getLabels)
 	int* labels;
 	int i;
 	
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
+
 	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
@@ -1050,6 +1067,10 @@ PHP_METHOD(svmmodel, checkProbabilityModel)
 	php_svm_model_object *intern;
 	int prob;
 	
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
+
 	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
@@ -1071,6 +1092,10 @@ PHP_METHOD(svmmodel, getSvrProbability)
 	php_svm_model_object *intern;
 	double svr_prob;
 	
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+    }
+
 	intern = php_svm_fetch_svm_model_object(Z_OBJ_P(getThis()));
 	if(!intern->model) {
 		SVM_THROW("No model available", 106);
