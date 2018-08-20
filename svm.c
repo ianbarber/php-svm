@@ -1146,7 +1146,6 @@ PHP_METHOD(svmmodel, predict_probability)
 	int nr_classes, i;
 	double *estimates;
 	struct svm_node *x;
-	int max_nr_attr = 64;
 	int *labels;
 	zval *arr; 
 	zval *retarr = NULL;
