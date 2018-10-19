@@ -54,7 +54,7 @@ Note, that if the bundled libsvm is used, the instructions about the libsvm setu
 
 The basic process is to define parameters, supply training data to generate a model on, then make predictions based on the model. There are a default set of parameters that should get some results with most any input, so we'll start by looking at the data. 
 
-Data is supplied in either a file, a stream, or as an an array. If supplied in a file or a stream, it must contain one line per training example, which must be formatted as an integer class (usually 1 and -1) followed by a series of feature/value pairs, in increasing feature order. The features are integers, the values floats, usually scaled 0-1. For example:
+Data is supplied in either a file, a stream, or as an array. If supplied in a file or a stream, it must contain one line per training example, which must be formatted as an integer class (usually 1 and -1) followed by a series of feature/value pairs, in increasing feature order. The features are integers, the values floats, usually scaled 0-1. For example:
 
     -1 1:0.43 3:0.12 9284:0.2
 
